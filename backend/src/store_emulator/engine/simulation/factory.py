@@ -1,0 +1,31 @@
+import importlib
+
+from store_emulator.domain.config import SimulationConfig
+from store_emulator.domain.engine import CustomerBehaviorEngine
+from store_emulator.domain.types import PathFinder
+from store_emulator.engine.llm_client import LiteLLMClient
+
+from .engines import ENGINES
+
+
+def build_engine(
+    config: SimulationConfig,
+    *,
+    llm: LiteLLMClient | None = None,
+    pathfinder: PathFinder,
+) -> CustomerBehaviorEngine:
+    entry = ENGINES.get(config.engine_type)
+    if not entry:
+        available = ", ".join(ENGINES.keys())
+        raise ValueError(f"Unsupported engine type: {config.engine_type} (available: {available})")
+
+    module_path, class_name, needs_llm = entry
+    if needs_llm and llm is None:
+        raise ValueError(f"{config.engine_type} engine requires an LLM client")
+
+    module = importlib.import_module(module_path, package="store_emulator.engine.simulation.engines")
+    engine_cls = getattr(module, class_name)
+
+    if needs_llm:
+        return engine_cls(llm=llm, pathfinder=pathfinder, config=config)  # type: ignore[return-value]
+    return engine_cls()  # type: ignore[return-value]

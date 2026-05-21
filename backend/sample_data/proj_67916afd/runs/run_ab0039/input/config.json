@@ -1,0 +1,29 @@
+{
+  "block_move_sec": 1,
+  "max_grid_size": 30,
+  "dwell": {
+    "shelf": {
+      "min": 2,
+      "max": 10
+    },
+    "fridge": {
+      "min": 2,
+      "max": 8
+    },
+    "counter": {
+      "min": 5,
+      "max": 30
+    }
+  },
+  "engine_type": "pattern_intent_impulse",
+  "llm": {
+    "model": "gemini/gemini-3.1-pro-preview",
+    "temperature": 1.0,
+    "max_tokens": 65535
+  },
+  "engines": {
+    "pattern_intent_impulse": {
+      "llm": null
+    }
+  }
+}

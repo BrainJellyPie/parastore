@@ -1,0 +1,134 @@
+"""Stage 3: impulse reactions. Inserts serendipity events for products exposed along the route."""
+
+from pydantic import BaseModel
+
+from store_emulator.domain.behavior import BehaviorCue
+from store_emulator.domain.rack import Rack, Slot
+from store_emulator.domain.persona import Persona
+from .prompt_utils import format_cue_prompt
+
+from store_emulator.domain.action import CustomerAction
+from .stage2_intent import IntentResponse
+
+LEVEL_VISIBILITY_GUIDE = [
+    "L3: 눈높이, 가장 잘 보여 선호 강도가 가장 높음",
+    "L2: 허리 높이, 그 다음으로 잘 보임",
+    "L4: 상단, 보이지만 손이 덜 감",
+    "L1: 하단, 목적 구매가 아니면 우선순위가 낮음",
+]
+
+
+class ImpulseResponse(BaseModel):
+    reasoning: str = ""
+    actions: list[CustomerAction] = []
+
+
+SYSTEM_PROMPT = """당신은 매장 고객의 세렌디피티(우연한 발견) 시뮬레이터입니다.
+고객이 이미 결정한 동선 위에서, 지나가다가 발견할 수 있는 상품이나 프로모션에 반응하는 추가 행동을 생성하세요.
+
+모든 가격과 예산은 US cents 단위입니다 (예: 549¢ = $5.49).
+
+규칙:
+- 새로 추가할 행동(browse / buy) 만 반환. 방문 순서 배치는 엔진이 자동 처리합니다
+- 고객의 성향(충동구매 확률, 탐색 성향)을 반영
+- 현실적으로 0~3개 정도의 세렌디피티 이벤트가 적당. 0개도 가능
+- action 은 browse 또는 buy 만 사용
+- target 은 노출 상품의 접근 타일 좌표를 사용
+- **buy 시 product_sku 는 아래 "경로상 노출되는 상품" 목록의 sku 중 하나만 사용**
+- **browse / buy 의 description 은 노출 상품 목록의 상품만 묘사**
+- description 은 해당 행동 시점의 상황만 묘사 (이후 행동 참조 금지)
+
+## 언어
+- 자유 서술 필드(`reasoning` 및 각 action의 `description`)의 값은 **영어로** 작성하세요.
+- 구조적 필드(`action`, `target`, `face`, `dwell`, `product_sku`, `nav`, `area`)는 한국어 prompt 에서 정의된 그대로 유지합니다.
+- 영어 표현은 자연스러운 콘텐츠 톤을 유지하세요."""
+
+
+def build_system_prompt(
+    max_products: int,
+    allow_no_purchase: bool,
+    existing_buys: int = 0,
+    browse_required_before_buy: bool = False,
+) -> str:
+    """System prompt with pattern-specific constraints applied."""
+    constraints: list[str] = []
+    if max_products == 0:
+        constraints.append("- 이 고객은 구매 의사가 없습니다. buy 이벤트를 추가하지 마세요")
+    elif max_products > 0:
+        remaining = max(0, max_products - existing_buys)
+        constraints.append(f"- 기존 구매 {existing_buys}개 포함, 최대 {max_products}개까지 가능 (추가 가능: {remaining}개)")
+    if allow_no_purchase:
+        constraints.append("- 이 고객은 아무것도 안 사도 되는 유형입니다")
+    if browse_required_before_buy:
+        constraints.append("- buy 전에 반드시 같은 rack의 같은 접근 타일에서 browse를 먼저 추가하세요 (browse→buy 세트로 반환)")
+
+    extra = "\n".join(constraints)
+    if extra:
+        extra = f"\n\n추가 제약:\n{extra}"
+
+    return SYSTEM_PROMPT + extra
+
+
+def build_user_prompt(
+    persona: Persona,
+    intent: IntentResponse,
+    exposed_products: list[tuple[Rack, Slot, str]],
+    day_of_week: str = "",
+    address: str = "",
+    customer_profile: str = "",
+    cue: BehaviorCue | None = None,
+    *,
+    grid_size: tuple[int, int],
+) -> str:
+    lines: list[str] = []
+
+    lines.append("## 기존 이벤트 시퀀스")
+    for i, event in enumerate(intent.actions):
+        action_label = event.action or event.nav
+        lines.append(f"  [{i}] {action_label}: {event.description}")
+    lines.append("")
+
+    lines.append("## 경로상 노출되는 상품")
+    lines.append("공통 진열 높이 기준:")
+    for guide in LEVEL_VISIBILITY_GUIDE:
+        lines.append(f"  - {guide}")
+    lines.append("상품별 level만 보고 이 공통 기준을 적용하세요.")
+    for f, slot, sku in exposed_products:
+        matched = next((i for i in slot.items if i.sku == sku), None)
+        promo = f" [{matched.promo}]" if matched and matched.promo else ""
+        overlay = f" (매대: {f.rack_decoration_desc})" if f.rack_decoration_desc else ""
+        access = sorted(f.access_tiles(grid_size))
+        rack_label = f.rack_name or f.id
+        name = matched.name if matched else sku
+        price = matched.price if matched else 0
+        lines.append(
+            f"  - {name} ({sku}) {price}¢{promo} | {rack_label}({f.type}){overlay} level={slot.level} @ 접근타일 {access[:3]}"
+        )
+    lines.append("")
+
+    lines.append("## 고객 성향")
+    lines.append(f"  {persona.identity} ({persona.age_group}, {persona.gender}): {persona.behavior_tendency}")
+    lines.append(f"  방문 목적: {persona.purpose}")
+    if persona.preferred_categories:
+        lines.append(f"  선호 카테고리: {', '.join(persona.preferred_categories)}")
+    if persona.budget_max > 0:
+        lines.append(f"  예산 범위: {persona.budget_label}")
+    if cue:
+        lines.append(f"  현재 상태: {format_cue_prompt(cue)}")
+    lines.append("")
+
+    if day_of_week or address or customer_profile:
+        lines.append("## 환경")
+        if day_of_week:
+            lines.append(f"  요일: {day_of_week}")
+        if address:
+            lines.append(f"  주소: {address}")
+        if customer_profile:
+            lines.append(f"  Customer profile: {customer_profile}")
+        lines.append("")
+
+    lines.append("경로상 노출 상품을 보고, 이 고객이 추가로 반응할 행동을 생성하세요.")
+    lines.append("방문 순서는 신경쓰지 마세요. 엔진이 최적 경로로 자동 배치합니다.")
+    return "\n".join(lines)
+
+

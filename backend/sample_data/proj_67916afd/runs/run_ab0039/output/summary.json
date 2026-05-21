@@ -1,0 +1,70 @@
+{
+  "store_id": "store_e7a3c33c",
+  "currency": "USD_CENTS",
+  "total_customers": 2440,
+  "total_revenue": 2103206,
+  "top_products": [
+    "Starbucks Frappuccino Mocha 13.7oz",
+    "Starbucks Tripleshot Energy Vanilla 15oz",
+    "RXBAR Sea Salt Chocolate 1.83oz",
+    "Wonderful Pistachios Roasted & Salted 2.5oz",
+    "KIND Bar Dark Chocolate Nuts & Sea Salt 1.4oz",
+    "7-Select Blueberry Muffin 4oz",
+    "Jimmy Dean Sausage Egg & Cheese Biscuit",
+    "Perrier Sparkling Mineral Water 16.9oz",
+    "Monster Energy Green 16oz",
+    "Fiji Natural Artesian Water 1L"
+  ],
+  "by_purpose": {
+    "Pre-work coffee": 190,
+    "Monday morning breakfast": 41,
+    "Daily caffeine fix": 254,
+    "Commute driving snack": 113,
+    "Bottled water purchase": 171,
+    "Protein bar restock": 89,
+    "Post-workout drink": 47,
+    "Tech chat coffee run": 59,
+    "Meeting catering pickup": 81,
+    "Sightseeing quick bite": 161,
+    "Stress relief sweet treat": 121,
+    "Mid-day brain food": 270,
+    "Tourist hydration": 178,
+    "Quick lunch break grab": 293,
+    "Afternoon energy boost": 279,
+    "Quick evening dinner": 38,
+    "Late-night coding snack": 6,
+    "Friday celebratory treat": 40,
+    "Weekend stroll refreshment": 9
+  },
+  "by_identity": {
+    "Corporate executives": 307,
+    "Monday morning planners": 38,
+    "Morning commuters": 171,
+    "Vendor partners": 171,
+    "Tech tourists": 217,
+    "Tech enthusiasts": 154,
+    "Silicon Valley sightseers": 124,
+    "Delivery drivers": 191,
+    "Lunchtime tech professionals": 309,
+    "Afternoon meeting attendees": 240,
+    "Evening dog walkers": 58,
+    "Campus security guards": 125,
+    "Janitorial staff": 63,
+    "Late-night developers": 12,
+    "Morning joggers": 40,
+    "Summer interns": 180,
+    "Friday post-work networkers": 40
+  },
+  "by_age": {
+    "40s": 563,
+    "30s": 751,
+    "50s": 358,
+    "20s": 692,
+    "60s+": 63,
+    "10s": 13
+  },
+  "by_gender": {
+    "Male": 1337,
+    "Female": 1103
+  }
+}

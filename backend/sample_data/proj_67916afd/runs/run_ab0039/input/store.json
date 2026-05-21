@@ -1,0 +1,2324 @@
+{
+  "id": "store_e7a3c33c",
+  "name": "Sample store",
+  "type": "Convenience store",
+  "grid_size": [
+    8,
+    6
+  ],
+  "weekly_schedule": [
+    {
+      "day": 1,
+      "is_open": true,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 2,
+      "is_open": true,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 3,
+      "is_open": true,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 4,
+      "is_open": true,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 5,
+      "is_open": true,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 6,
+      "is_open": false,
+      "open_hour": 8,
+      "close_hour": 20
+    },
+    {
+      "day": 7,
+      "is_open": false,
+      "open_hour": 8,
+      "close_hour": 20
+    }
+  ],
+  "racks": [
+    {
+      "id": "r_b5cf7836",
+      "type": "fridge",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        2,
+        0
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Drink 1",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0001",
+              "name": "Cherry Coke 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0002",
+              "name": "Pepsi 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0003",
+              "name": "Ghost Energy Sour Patch Kids 16oz",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0004",
+              "name": "Starbucks Frappuccino Mocha 13.7oz",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0005",
+              "name": "Dr Pepper 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0006",
+              "name": "Sprite 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0007",
+              "name": "Monster Energy Green 16oz",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0008",
+              "name": "Celsius Sparkling Orange 12oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0009",
+              "name": "Coca-Cola Classic 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0010",
+              "name": "Diet Coke 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0011",
+              "name": "Mountain Dew 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0012",
+              "name": "Red Bull Energy Drink 8.4oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0013",
+              "name": "Coca-Cola Classic 1 Liter",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0014",
+              "name": "Sprite 1 Liter",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0015",
+              "name": "Monster Energy Zero Ultra 16oz",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0016",
+              "name": "Red Bull Sugarfree 8.4oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_801fadeb",
+      "type": "fridge",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        3,
+        0
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Drink 2",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0017",
+              "name": "Arizona Green Tea 23oz",
+              "price": 129,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0018",
+              "name": "Snapple Peach Tea 16oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0019",
+              "name": "Pure Leaf Sweet Tea 18.5oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0020",
+              "name": "Minute Maid Orange Juice 12oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0021",
+              "name": "BodyArmor Strawberry Banana 16oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0022",
+              "name": "Powerade Mountain Berry Blast 28oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0023",
+              "name": "Smartwater 20oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0024",
+              "name": "Pure Life Purified Water 20oz",
+              "price": 189,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0025",
+              "name": "Gatorade Cool Blue 28oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0026",
+              "name": "Gatorade Lemon-Lime 28oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0027",
+              "name": "Dasani Purified Water 20oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0028",
+              "name": "Aquafina Purified Water 20oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0029",
+              "name": "Fiji Natural Artesian Water 1L",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0030",
+              "name": "Essentia Ionized Alkaline Water 1L",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0031",
+              "name": "Smartwater 1L",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0032",
+              "name": "Evian Natural Spring Water 1L",
+              "price": 319,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_f05df537",
+      "type": "fridge",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        4,
+        0
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Frozen food",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0033",
+              "name": "Tyson Any'tizers Popcorn Chicken 12oz",
+              "price": 599,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0034",
+              "name": "Ore-Ida Golden Crinkles Fries 19oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0035",
+              "name": "TGI Fridays Mozzarella Sticks 11oz",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0036",
+              "name": "Ben & Jerry's Cookie Dough Pint 16oz",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0037",
+              "name": "Jimmy Dean Sausage Egg & Cheese Biscuit",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0038",
+              "name": "White Castle Cheeseburgers 2ct",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0039",
+              "name": "El Monterey Bean & Cheese Burrito",
+              "price": 149,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0040",
+              "name": "Eggo Homestyle Waffles 6ct",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0041",
+              "name": "Red Baron Deep Dish Singles Pepperoni",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0042",
+              "name": "Hot Pockets Pepperoni Pizza 2ct",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0043",
+              "name": "DiGiorno Personal Pan Pepperoni Pizza",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0044",
+              "name": "Hot Pockets Ham & Cheddar 2ct",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0045",
+              "name": "Stouffer's Macaroni & Cheese 12oz",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0046",
+              "name": "Hungry-Man Boneless Fried Chicken 16oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0047",
+              "name": "Banquet Salisbury Steak Meal 11.8oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0048",
+              "name": "Michelina's Fettuccine Alfredo 8.5oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_a3f365d5",
+      "type": "shelf",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        3,
+        2
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Snacks 1",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "N",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0049",
+              "name": "Takis Fuego 9.9oz",
+              "price": 429,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0050",
+              "name": "Funyuns Onion Flavored Rings 2.125oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0051",
+              "name": "Fritos Chili Cheese 2oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0052",
+              "name": "Munchies Cheese Fix 2.75oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0053",
+              "name": "Cheetos Crunchy 2.125oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0054",
+              "name": "Cheetos Flamin' Hot 2.125oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0055",
+              "name": "Ruffles Cheddar & Sour Cream 2.125oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0056",
+              "name": "Ruffles Original 2.125oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0057",
+              "name": "Doritos Nacho Cheese 2.75oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0058",
+              "name": "Doritos Cool Ranch 2.75oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0059",
+              "name": "Lay's Classic 2.625oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0060",
+              "name": "Lay's Barbecue 2.625oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0061",
+              "name": "Pringles Original 5.2oz",
+              "price": 319,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0062",
+              "name": "Pringles Sour Cream & Onion 5.2oz",
+              "price": 319,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0063",
+              "name": "Lay's Stax Original 5.5oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0064",
+              "name": "Bugles Original 3oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0065",
+              "name": "David Jumbo Sunflower Seeds 5.25oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0066",
+              "name": "Corn Nuts BBQ 4oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0067",
+              "name": "Baken-Ets Pork Rinds 2oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0068",
+              "name": "Combos Pizzeria Pretzel 6.3oz",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0069",
+              "name": "Smartfood White Cheddar Popcorn 2oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0070",
+              "name": "Snyder's Mini Pretzels 3.5oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0071",
+              "name": "Cheez-It Original 3oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0072",
+              "name": "Goldfish Cheddar 2.4oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0073",
+              "name": "Jack Link's Beef Jerky Teriyaki 3.2oz",
+              "price": 899,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0074",
+              "name": "Jack Link's Beef Jerky Original 3.2oz",
+              "price": 899,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0075",
+              "name": "Slim Jim Giant Meat Stick 0.97oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0076",
+              "name": "Slim Jim Mild Giant 0.97oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0077",
+              "name": "Planters Salted Peanuts 2oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0078",
+              "name": "Wonderful Pistachios Roasted & Salted 2.5oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0079",
+              "name": "Trail Mix Tropical 3.5oz",
+              "price": 329,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0080",
+              "name": "Kar's Sweet 'n Salty Mix 2oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_2c97802a",
+      "type": "shelf",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        4,
+        2
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Snacks 2",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "N",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0081",
+              "name": "Hostess Donettes Powdered 10.5oz",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0082",
+              "name": "Hostess Honey Bun 4.75oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0083",
+              "name": "7-Select Blueberry Muffin 4oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0084",
+              "name": "Little Debbie Oatmeal Creme Pies 3oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0085",
+              "name": "Hostess Twinkies 2-Pack 3.85oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0086",
+              "name": "Hostess CupCakes 2-Pack 3.2oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0087",
+              "name": "Pop-Tarts Strawberry 2ct",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0088",
+              "name": "Pop-Tarts Brown Sugar Cinnamon 2ct",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0089",
+              "name": "Oreo King Size 4.1oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0090",
+              "name": "Chips Ahoy! Chunky King Size 4.1oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0091",
+              "name": "Grandma's Chocolate Brownie 2.5oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0092",
+              "name": "Grandma's Chocolate Chip Cookies 2.5oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0093",
+              "name": "Nutter Butter King Size 3oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0094",
+              "name": "Fig Newtons 2oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0095",
+              "name": "Famous Amos Chocolate Chip 2oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0096",
+              "name": "Rice Krispies Treats 2.2oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0097",
+              "name": "Haribo Goldbears 5oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0098",
+              "name": "Trolli Sour Brite Crawlers 5oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0099",
+              "name": "Life Savers Gummies 5oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0100",
+              "name": "Swedish Fish 5oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0101",
+              "name": "Skittles Original Share Size 4oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0102",
+              "name": "Starburst Original Share Size 3.45oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0103",
+              "name": "Sour Patch Kids Share Size 3.6oz",
+              "price": 289,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0104",
+              "name": "Airheads Xtremes 2oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0105",
+              "name": "Reese's Peanut Butter Cups King Size 2.8oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0106",
+              "name": "Snickers King Size 3.29oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0107",
+              "name": "M&M's Peanut Share Size 3.27oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0108",
+              "name": "M&M's Milk Chocolate Share Size 3.14oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0109",
+              "name": "Hershey's Milk Chocolate King Size 2.6oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0110",
+              "name": "Kit Kat King Size 3oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0111",
+              "name": "Twix Caramel King Size 3.02oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0112",
+              "name": "Butterfinger King Size 3.7oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_5ad00af0",
+      "type": "shelf",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        6,
+        0
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Drink 3",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "c",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "S",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0113",
+              "name": "Yoo-hoo Chocolate Drink 11oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0114",
+              "name": "V8 Original Vegetable Juice 12oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0115",
+              "name": "Chobani Greek Yogurt Drink Strawberry 7oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0116",
+              "name": "7-Select Apple Juice 15.2oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0117",
+              "name": "Fairlife Core Power Chocolate 14oz",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0118",
+              "name": "Muscle Milk Genuine Vanilla 14oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0119",
+              "name": "Starbucks Tripleshot Energy Vanilla 15oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0120",
+              "name": "Naked Berry Blast 15.2oz",
+              "price": 429,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0121",
+              "name": "Starbucks Pink Drink 14oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0122",
+              "name": "Tropicana 100% Orange Juice 12oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0123",
+              "name": "Simply Orange Juice 11.5oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0124",
+              "name": "Fairlife Core Power Strawberry 14oz",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "S",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0125",
+              "name": "Naked Mighty Mango 15.2oz",
+              "price": 429,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0126",
+              "name": "Ocean Spray Cranberry Juice 15.2oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0127",
+              "name": "Simply Lemonade 11.5oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0128",
+              "name": "Perrier Sparkling Mineral Water 16.9oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_e3aa8ac2",
+      "type": "entrance",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        0,
+        3
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": []
+    },
+    {
+      "id": "r_3dab74c5",
+      "type": "exit",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        0,
+        3
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": []
+    },
+    {
+      "id": "r_eb9e23d4",
+      "type": "counter",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        0,
+        2
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Counter",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": []
+    },
+    {
+      "id": "r_5870831e",
+      "type": "shelf",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        6,
+        3
+      ],
+      "rotation": 90,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Foods 2",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "E",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0129",
+              "name": "Maruchan Ramen Noodle Soup Chicken 3oz",
+              "price": 99,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0130",
+              "name": "Maruchan Ramen Noodle Soup Beef 3oz",
+              "price": 99,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0131",
+              "name": "Tapatio Ramen Noodle Soup 3.4oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0132",
+              "name": "Mama Shrimp Creamy Tom Yum 2.1oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0133",
+              "name": "Maruchan Yakisoba Teriyaki 4oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0134",
+              "name": "Maruchan Yakisoba Chicken 4oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0135",
+              "name": "Nissin Hot & Spicy Bowl Chicken 3.32oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0136",
+              "name": "Nongshim Bowl Noodle Spicy Kimchi 3.03oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0137",
+              "name": "Nissin Cup Noodles Chicken 2.25oz",
+              "price": 189,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0138",
+              "name": "Nissin Cup Noodles Beef 2.25oz",
+              "price": 189,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0139",
+              "name": "Maruchan Instant Lunch Roast Chicken 2.25oz",
+              "price": 189,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0140",
+              "name": "Nongshim Shin Ramyun Cup 2.64oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0141",
+              "name": "Sapporo Ichiban Original 3.5oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0142",
+              "name": "Nissin Top Ramen Chicken 6-pack",
+              "price": 459,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0143",
+              "name": "Buldak Spicy Chicken Roasted Noodles Bowl 3.7oz",
+              "price": 359,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0144",
+              "name": "Indomie Mi Goreng 3oz",
+              "price": 199,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0145",
+              "name": "Bumble Bee Solid White Tuna Can 5oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0146",
+              "name": "Hormel Chili with Beans 15oz",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0147",
+              "name": "Dinty Moore Beef Stew 15oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0148",
+              "name": "Knorr Pasta Sides Alfredo 4.4oz",
+              "price": 229,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0149",
+              "name": "Campbell's Chunky Classic Chicken Noodle 18.6oz",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0150",
+              "name": "Campbell's Chunky Sirloin Burger Soup 18.8oz",
+              "price": 379,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0151",
+              "name": "Progresso Traditional Chicken Noodle 19oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0152",
+              "name": "Campbell's Chicken Noodle Soup Cans 10.75oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0153",
+              "name": "Kraft Macaroni & Cheese Cup 2.05oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0154",
+              "name": "Velveeta Shells & Cheese Cup 2.39oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0155",
+              "name": "Chef Boyardee Beef Ravioli Micro Cup 7.5oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0156",
+              "name": "Chef Boyardee Spaghetti & Meatballs 7.5oz",
+              "price": 269,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0157",
+              "name": "Barilla Penne Pasta 16oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0158",
+              "name": "Prego Traditional Pasta Sauce 24oz",
+              "price": 429,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0159",
+              "name": "Spam Classic 12oz",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0160",
+              "name": "StarKist Chunk Light Tuna Pouch 2.6oz",
+              "price": 219,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_21861767",
+      "type": "shelf",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        6,
+        4
+      ],
+      "rotation": 90,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Foods 1",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "a",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "E",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0161",
+              "name": "BelVita Blueberry Breakfast Biscuits 1.76oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0162",
+              "name": "KIND Bar Dark Chocolate Nuts & Sea Salt 1.4oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0163",
+              "name": "Nutri-Grain Apple Cinnamon 1.3oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0164",
+              "name": "Fiber One Chocolate Fudge Brownie 0.89oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0165",
+              "name": "Quaker Chewy Granola Bars Chocolate Chip 0.84oz",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0166",
+              "name": "Nature Valley Crunchy Oats 'n Honey 1.49oz",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0167",
+              "name": "RXBAR Sea Salt Chocolate 1.83oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0168",
+              "name": "Clif Bar Chocolate Chip 2.4oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0169",
+              "name": "Kellogg's Frosted Flakes Cup 2.1oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0170",
+              "name": "General Mills Cheerios Cup 1.3oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0171",
+              "name": "Cinnamon Toast Crunch Cup 2oz",
+              "price": 259,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0172",
+              "name": "Quaker Oatmeal Maple & Brown Sugar Cup 1.51oz",
+              "price": 279,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "E",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0173",
+              "name": "Kellogg's Pop-Tarts S'mores 8ct",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0174",
+              "name": "General Mills Honey Nut Cheerios Box 10.8oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0175",
+              "name": "Kellogg's Froot Loops Box 10.1oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0176",
+              "name": "Quaker Quick 1-Minute Oats 18oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0177",
+              "name": "Morton Iodized Salt 26oz",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0178",
+              "name": "Domino Premium Pure Cane Sugar 16oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0179",
+              "name": "Pam Original Cooking Spray 8oz",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0180",
+              "name": "Wesson Vegetable Oil 48oz",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0181",
+              "name": "Jif Creamy Peanut Butter 16oz",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0182",
+              "name": "Smucker's Strawberry Jelly 18oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0183",
+              "name": "Nutella Hazelnut Spread 13oz",
+              "price": 599,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0184",
+              "name": "Heinz Tomato Ketchup 20oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0185",
+              "name": "Wonder Classic White Bread 20oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0186",
+              "name": "Bimbo Soft White Bread 20oz",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0187",
+              "name": "Thomas' Plain Bagels 6ct",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0188",
+              "name": "Mission Flour Tortillas 10ct",
+              "price": 429,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "W",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0189",
+              "name": "Hellmann's Real Mayonnaise 15oz",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0190",
+              "name": "French's Classic Yellow Mustard 14oz",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0191",
+              "name": "Frank's RedHot Original 12oz",
+              "price": 449,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0192",
+              "name": "Sweet Baby Ray's BBQ Sauce 18oz",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_4f65c40d",
+      "type": "fridge",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        2,
+        5
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Ice cream 1",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "N",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0193",
+              "name": "Popsicle SpongeBob SquarePants",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0194",
+              "name": "Good Humor Strawberry Shortcake Bar",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0195",
+              "name": "My/Mochi Ice Cream Strawberry 1ct",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0196",
+              "name": "Outshine Mango Fruit Bar",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0197",
+              "name": "Klondike Original Vanilla Bar",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0198",
+              "name": "Nestle Toll House Cookie Sandwich",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0199",
+              "name": "Twix Ice Cream Bar",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0200",
+              "name": "Snickers Ice Cream Bar",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0201",
+              "name": "Magnum Double Caramel Ice Cream Bar",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0202",
+              "name": "Nestle Drumstick Vanilla",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0203",
+              "name": "Haagen-Dazs Vanilla Milk Chocolate Almond Bar",
+              "price": 399,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0204",
+              "name": "Oreo Frozen Dairy Dessert Sandwich",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0205",
+              "name": "Popsicle Firecracker",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0206",
+              "name": "Bomb Pop Original",
+              "price": 249,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0207",
+              "name": "FatBoy Vanilla Ice Cream Sandwich",
+              "price": 299,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0208",
+              "name": "Blue Bunny Bunny Tracks Cone",
+              "price": 349,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_61e7a606",
+      "type": "fridge",
+      "shape": [
+        [
+          1
+        ]
+      ],
+      "position": [
+        3,
+        5
+      ],
+      "rotation": 0,
+      "levels": 4,
+      "dwell_min": 5,
+      "dwell_max": 30,
+      "rack_name": "Ice cream 2",
+      "rack_desc": "",
+      "rack_decoration_desc": "",
+      "design_variant": "b",
+      "locked_faces": [],
+      "slots": [
+        {
+          "block": 0,
+          "face": "N",
+          "level": 1,
+          "items": [
+            {
+              "sku": "A0209",
+              "name": "7-Select Chocolate Ice Cream Pint",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0210",
+              "name": "7-Select Mint Chocolate Chip Pint",
+              "price": 499,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0211",
+              "name": "Breyers Natural Vanilla 16oz",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0212",
+              "name": "Breyers Chocolate 16oz",
+              "price": 549,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 2,
+          "items": [
+            {
+              "sku": "A0213",
+              "name": "Talenti Sea Salt Caramel Gelato 16oz",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0214",
+              "name": "Talenti Mediterranean Mint Gelato 16oz",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0215",
+              "name": "Haagen-Dazs Strawberry 14oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0216",
+              "name": "Haagen-Dazs Dulce de Leche 14oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 3,
+          "items": [
+            {
+              "sku": "A0217",
+              "name": "Ben & Jerry's Half Baked Pint",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0218",
+              "name": "Ben & Jerry's Cherry Garcia Pint",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0219",
+              "name": "Ben & Jerry's Chocolate Fudge Brownie Pint",
+              "price": 699,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0220",
+              "name": "Haagen-Dazs Vanilla 14oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        },
+        {
+          "block": 0,
+          "face": "N",
+          "level": 4,
+          "items": [
+            {
+              "sku": "A0221",
+              "name": "Halo Top Sea Salt Caramel Pint",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0222",
+              "name": "Halo Top Peanut Butter Cup Pint",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0223",
+              "name": "Ben & Jerry's Non-Dairy Chocolate Chip Cookie Dough",
+              "price": 749,
+              "promo": "",
+              "image_url": null
+            },
+            {
+              "sku": "A0224",
+              "name": "Haagen-Dazs Coffee 14oz",
+              "price": 649,
+              "promo": "",
+              "image_url": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
