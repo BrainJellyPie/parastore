@@ -90,10 +90,13 @@ To evaluate performance, this chart compares **actual sales history from a physi
 
 - Python **3.13+** with [uv](https://github.com/astral-sh/uv)
 - Node **20+** with **pnpm 10.33.0** (pinned in `frontend/package.json`)
-- An LLM provider API key. The default model is `gemini/gemini-3.1-pro-preview`
-  via LiteLLM, so a `GEMINI_API_KEY` works out of the box. To switch
-  providers, edit `backend/src/store_emulator/application/config.py` and
-  supply the matching `*_API_KEY`.
+- An LLM provider API key for persona generation and the LLM shopper engine.
+  The default model is `gemini/gemini-3.1-pro-preview` via LiteLLM, so a
+  `GEMINI_API_KEY` works out of the box. To switch providers or point at a
+  self-hosted OpenAI-compatible server (vLLM, llama.cpp), set
+  `PARASTORE_LLM_MODEL` / `PARASTORE_LLM_API_BASE` (see
+  [Configuration](#configuration)) and supply the matching `*_API_KEY`.
+  The `rule_based` engine runs simulations with **no LLM at all**.
 
 ## Quick start
 
@@ -152,11 +155,97 @@ The "golden path" through the app, end to end:
 3. **Draw the store layout.** Once the project is created, use the isometric
    grid editor to place shelves, fridges, counters, walls, and entry points.
    Assign product categories to each rack.
-4. **Run the simulation.** Hit play. Personas walk in on a wall-clock
-   timeline; the 3D view animates their paths in real time. Use the playback
-   controls to scrub, pause, or change speed.
-5. **Inspect results.** Watch the live dashboard for aggregate metrics
-   (visitor count, conversion rate, dwell time, per-rack engagement).
+4. **Run the simulation.** Press **Run simulation** to open the run
+   launcher: pick the engine (instant *rule-based* preview or *LLM shoppers*),
+   how many customers to simulate, the seed, and whether this is a **preview**
+   (layout stays editable) or the **final run** (layout is locked). A progress
+   bar shows customers done, elapsed and remaining time.
+5. **Replay and inspect.** Personas walk in on a wall-clock timeline; scrub,
+   pause or change speed. The time bar switches between **footfall**, **dwell
+   time** and **predicted traffic** heatmaps and toggles a 3D **rack KPI**
+   overlay. The dashboard shows conversion, basket value, revenue per
+   visitor, impulse share, segment breakdowns and run diagnostics.
+6. **Compare and validate.** The playback toolbar switches between runs of a
+   layout and opens **Compare**: a paired A/B report (same customers on both
+   layouts when the seeds match) with bootstrap confidence intervals and
+   P(B > A). Upload a POS export under **Validate against POS data** to score a
+   run against real sales, or export one row per simulated customer as CSV.
+
+### Headless experiments (CLI)
+
+Everything the UI does is also scriptable, which is how layout A/B tests,
+replicates and research experiments are meant to run:
+
+```bash
+cd backend
+# re-simulate a saved run's store + personas with the LLM-free engine, 3 replicates
+uv run parastore simulate --run sample_data/proj_67916afd/runs/run_ab0039 \
+    --engine rule_based --replicates 3 --out /tmp/runs/A
+# paired A/B of two layouts on the same personas (common random numbers);
+# prints the comparison and writes /tmp/ab/{A,B}/rep_0 and compare_rep_0.json
+uv run parastore ab --store-a a.json --store-b b.json --personas personas.json \
+    --engine rule_based --seed 1 --out /tmp/ab
+uv run parastore compare /tmp/ab/A/rep_0 /tmp/ab/B/rep_0   # any two run dirs
+uv run parastore fidelity /tmp/runs/A/rep_0 pos.csv        # Spearman, JS, NDCG vs POS
+uv run parastore summary /tmp/runs/A/rep_0
+```
+
+### Vision shoppers on a CPU (no GPU, no API key)
+
+The `vlm_glance` engine plans visits like the rule-based engine, then shows a
+vision-language model (VLM) an image of the shelves the shopper walks past —
+product names, shelf-edge price tags, promotion ribbons and numbered badges.
+In the persona's shoes, the model names the product most likely to catch the eye
+and rates the temptation 0–10; a seeded draw (`buy_scale` × interest × shelf-level
+weight) turns that into a purchase, a look, or nothing. The model decides *what*
+tempts a shopper, the calibratable `buy_scale` decides *how often*. Any LiteLLM
+vision model works; the defaults target a small model served locally by
+[llama.cpp](https://github.com/ggml-org/llama.cpp):
+
+```bash
+# Qwen3.5-0.8B (Q4_K_M) + its vision projector, ~1 GB RAM, 2 CPU threads
+llama-server -m Qwen3.5-0.8B-Q4_K_M.gguf --mmproj mmproj-Qwen3.5-0.8B-F16.gguf \
+    --port 8081 -c 8192 -np 1 --reasoning off --image-max-tokens 512 --cache-ram 256
+
+cd backend
+uv run parastore simulate --run sample_data/proj_67916afd/runs/run_ab0039 \
+    --engine vlm_glance --max-customers 30 --cache-dir .vlm_cache --out /tmp/runs/V
+```
+
+Every glance is logged with the model's answer, the product it resolved to and
+the outcome in `output/vlm_glance_meta.json`, and summarized in the dashboard.
+Measured on 2 vCPUs without a GPU (512 px shelf images, ~1.4 glances per
+customer with the default gating):
+
+| Model (Q4_K_M + F16 projector) | s / glance | Reads name / price of a numbered product |
+| :--- | ---: | :--- |
+| Qwen3.5-0.8B | ~9.5 | 58–63% / 50–69% |
+| Qwen3.5-2B | ~22.5 | 88–94% / 100% |
+
+So use customer samples (30 customers ≈ 5 min with 0.8B, ≈ 15 min with 2B);
+`--cache-dir` makes reruns free. Both models favor products in the top row
+of a shelf image (2B: ~70% of picks), so treat VLM picks as a model to be
+calibrated, not as ground truth.
+
+### Configuration
+
+Defaults live in `backend/src/store_emulator/application/config.py`; these
+environment variables override them without editing code:
+
+| Variable | Meaning |
+| :--- | :--- |
+| `PARASTORE_LLM_MODEL`, `PARASTORE_LLM_API_BASE` | LiteLLM model id and optional OpenAI-compatible endpoint |
+| `PARASTORE_LLM_SEED`, `PARASTORE_LLM_CACHE_DIR` | per-call seed; on-disk response cache for repeatable LLM runs |
+| `PARASTORE_LLM_TEMPERATURE`, `PARASTORE_LLM_MAX_TOKENS`, `PARASTORE_LLM_TIMEOUT_SEC` | sampling and limits |
+| `PARASTORE_ENGINE` | default engine: `pattern_intent_impulse` (LLM), `rule_based` or `vlm_glance` (vision) |
+| `PARASTORE_SEED`, `PARASTORE_CURRENCY` | default run seed; ISO 4217 currency of prices (e.g. `KRW`) |
+| `PARASTORE_EXPOSURE_MODEL`, `PARASTORE_ROUTE_ORDERING` | `visibility`/`adjacency`; `planned`/`nearest` |
+| `PARASTORE_BUDGET_TOLERANCE` | impulse-spend cap as a multiple of the persona budget (`none` disables) |
+| `PARASTORE_VLM_MODEL`, `PARASTORE_VLM_API_BASE` | vision model for `vlm_glance` (default `openai/local-vlm` at `http://127.0.0.1:8081/v1`) |
+| `PARASTORE_VLM_MAX_GLANCES`, `PARASTORE_VLM_GLANCE_POLICY`, `PARASTORE_VLM_LOOK_BASE` | shelves considered per customer; `gated`/`all`; look probability |
+| `PARASTORE_VLM_IMAGE_WIDTH`, `PARASTORE_VLM_CACHE_DIR`, `PARASTORE_VLM_SEED` | shelf image width (px); response cache; per-call seeds |
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for what changed in v0.2 and why.
 
 > **Running parastore with the help of an AI assistant** (Claude Code,
 > Cursor, …)? Point it at [`USAGE.md`](./USAGE.md). That guide explains
@@ -168,8 +257,12 @@ The "golden path" through the app, end to end:
 
 This is a prototype. To set expectations honestly:
 
-- **No ground-truth calibration.** Outputs are LLM-grounded plausibility, not
-  validated forecasts. Treat the numbers as illustrative, not predictive.
+- **Not calibrated out of the box.** Outputs are LLM-grounded (or rule-based)
+  plausibility, not validated forecasts. The fidelity report measures how far
+  a run is from your POS data, and `RuleBasedConfig` / `PerceptionConfig`
+  expose the parameters to calibrate, but nothing is fitted automatically.
+  Compare layouts with paired runs and read the confidence intervals rather
+  than single numbers.
 - **LLM cost and latency are real.** Generating a week of personas for a
   modest store can be hundreds of LLM calls. Plan your provider budget
   accordingly. Persona generation is capped at **100 per day** by default

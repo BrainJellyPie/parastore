@@ -27,6 +27,8 @@ Path calculation (A*) and timeline conversion are handled by the shared executor
 ```
 engines/
 ├── __init__.py                    ← engine registry (EngineType → module/class mapping)
+├── rule_based.py                  ← heuristic engine, no LLM (single file)
+├── vlm_glance/                    ← vision-language shopper (rule planner + VLM impulse)
 └── pattern_intent_impulse/        ← PII engine (subpackage, uses LLM)
     ├── __init__.py                ← PatternIntentImpulseEngine export
     ├── engine.py                  ← engine body
@@ -41,7 +43,8 @@ Simple engines go in a single file; engines with many supporting files (prompts,
 ## Prerequisites
 
 - **Coordinate system**: `(x, y)` — x = column (horizontal), y = row (vertical). Grid access is `grid[y][x]`
-- **Price unit**: US cents (100 = $1.00). `Slot.price` and `Persona.budget_min/max` all use the same unit
+- **Price unit**: minor units of `SimulationConfig.currency` (USD cents by default: 100 = $1.00; KRW: whole won). `Slot.price` and `Persona.budget_min/max` all use the same unit. Prompts should describe prices with `engine/prompting.py` (`price_unit_rule`, `format_price`, `format_budget`) rather than hard-coding cents
+- **Randomness**: draw only from `random.Random(context.seed)` (or seeds derived from it). Never use the global `random` module or an unseeded `Random()` — that breaks reproducibility and the paired (common-random-numbers) layout comparison
 - **Time unit**: dwell and all other time-related values are in seconds
 - **Time format**: `"HH:MM:SS"` string (e.g. `arrival_time`)
 - **async required**: `decide_actions` is an async method. Declare `async def` even if you don't use LLM
@@ -76,6 +79,8 @@ Constructed per customer and passed to the engine. The engine only needs to use 
 | `concurrent_visitors_in_hour` | `int` | Number of other customers arriving in the same hour (congestion reference) |
 | `cue` | `BehaviorCue` | Individual behavior variation seed (state/purse/emotion/company) |
 | `behavior_patterns` | `list[BehaviorPattern]` | Available behavior patterns |
+| `address`, `customer_profile` | `str` | Project context (may be empty) |
+| `seed` | `int` | Per-customer seed from `(run seed, replicate, persona id)`; identical across layouts |
 
 ### Output: EngineDecision
 
@@ -84,9 +89,12 @@ class EngineDecision(BaseModel):
     actions: list[CustomerAction]  # action sequence (required)
     engine_type: str               # engine identifier (required)
     trace: dict[str, object] = {}  # debug log (optional, not persisted)
+    dropped_invalid_buys: int = 0  # BUYs removed because the SKU is not in the store
+    dropped_over_budget: int = 0   # impulse BUYs removed by the budget tolerance
 ```
 
 `trace` is not saved to `CustomerResult`. The `customer_executor` logs only the key names at DEBUG level.
+The two `dropped_*` counters are copied to `CustomerResult` and summed in `diagnostics.json`.
 
 ### Token usage
 
@@ -106,9 +114,15 @@ class CustomerAction(BaseModel):
     action: Action | None             # ENTER/BROWSE/BUY/WANDER/PAY/EXIT
     dwell: int = 0                    # dwell time (seconds)
     product_sku: str = ""             # product SKU for BUY
+    quantity: int = 1                 # units for BUY (clamped to max_quantity_per_line)
+    origin: str = "planned"           # "planned" | "impulse" (not part of the LLM schema)
     description: str = ""            # action description (optional)
     area: tuple[x1,y1,x2,y2] | None  # WANDER area (when nav="area")
 ```
+
+Set `origin="impulse"` on BROWSE/BUY actions the customer did not plan; the
+aggregator uses it for impulse revenue/unit share. `origin` is hidden from the
+JSON schema sent to LLMs (`SkipJsonSchema`), so engines set it in code.
 
 ### nav mode usage
 
@@ -259,7 +273,9 @@ ENGINES: dict[EngineType, tuple[str, str, bool]] = {
 }
 ```
 
-The third value (`bool`) indicates whether an LLM client is required. If `True`, the factory creates and injects a `LiteLLMClient`.
+The third value (`bool`) indicates whether an LLM client is required. If `True`, the factory creates and injects a `LiteLLMClient`
+(`engine_cls(llm=..., pathfinder=..., config=...)`); otherwise it calls `engine_cls(pathfinder=..., config=...)`.
+The new engine then appears in `GET /api/engines`, the UI run launcher and `parastore --engine`.
 
 ### 4. Verify
 
@@ -271,7 +287,35 @@ uv run pyright src/   # type check 0 errors
 
 | Engine | Location | Paradigm | Characteristics |
 |--------|----------|----------|-----------------|
-| `pattern_intent_impulse` | `engines/pattern_intent_impulse/` | per-customer | 3-stage LLM pipeline: pattern selection → intent generation → impulse response. Intermediate path calculation identifies exposed products |
+| `pattern_intent_impulse` | `engines/pattern_intent_impulse/` | per-customer | 3-stage LLM pipeline: pattern selection → intent generation → impulse response. Exposure is computed on the planned route (`perceive_products`, visibility scores passed to stage 3). Stage 2 uses a store-level cacheable system prompt |
+| `rule_based` | `engines/rule_based.py` | per-customer | No LLM. Pattern draw, category-matched planned buys, visibility-driven impulse buys and browse-only stops. Parameters in `RuleBasedConfig`; deterministic given `context.seed` |
+| `vlm_glance` | `engines/vlm_glance/` | per-customer | `RuleBasedEngine` planner + VLM impulse step: renders each well-seen rack face (`engine/perception/shelf_render.py`) and asks a vision model what catches the persona's eye. Config in `VLMGlanceConfig`; exports every glance through `metadata()` |
+
+### Reusing the rule-based planner
+
+`RuleBasedEngine.decide_actions` is `_plan()` → `await _impulse()` → `_finish()`.
+Subclass it and override only `_impulse(context, plan)` to change how unplanned
+purchases happen; use `can_buy_more`, `add_impulse_buy` and `add_impulse_look`
+so budget, item caps and action shapes stay identical across engines.
+
+### Run-level metadata
+
+An engine that implements `metadata() -> dict[str, object]`
+(`domain.engine.EngineMetadataSource`) gets it saved as
+`output/<engine_type>_meta.json` by the server and the CLI.
+
+### Exposure helpers
+
+`engine/routing/route_builder.py` exposes what an engine needs to reason about
+what a customer can see:
+
+- `perceive_products(store, journey, config.perception)` → `list[ExposedProduct]`
+  (`rack`, `slot`, `sku`, `visibility` in (0, 1], `facings`) for a walked path
+  (`journey` from `build_journey`).
+- `integrate_actions(store, intent_actions, impulse_actions, ordering=config.route_ordering)`
+  merges impulse visits into a planned route (`"planned"` = keep the shopper's
+  order and insert impulse racks at the cheapest detour, `"nearest"` = legacy
+  greedy re-ordering).
 
 ## Files not to modify
 
