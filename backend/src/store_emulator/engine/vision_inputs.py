@@ -119,7 +119,7 @@ def _minor(v: float | None, currency: str) -> int | None:
 async def vlm_receipt(llm: VisionLLM, img: Image.Image, *, receipt_id: str, default_currency: str = "USD") -> ReceiptReading:
     url, _ = image_data_url(ImageOps.exif_transpose(img).convert("RGB"), max_side=1600, fmt="JPEG")
     r = await llm.generate_structured_with_image_async(_ReceiptVLM, RECEIPT_PROMPT, "Transcribe this receipt.", url, max_retries=1, seed=0)
-    currency = (r.currency or default_currency).upper()
+    currency = (r.currency.strip() or default_currency.strip()).upper()
     lines = [ReceiptLine(name=line.name.strip(), quantity=line.quantity, unit_price=_minor(line.unit_price, currency),
                          line_total=_minor(line.line_total, currency))
              for line in r.lines if line.name.strip()]
@@ -129,17 +129,26 @@ async def vlm_receipt(llm: VisionLLM, img: Image.Image, *, receipt_id: str, defa
 
 
 def match_lines(reading: ReceiptReading, products: dict[str, str], *, cutoff: float = 0.72) -> ReceiptReading:
-    """Lines carry the store's SKU when their name matches one of its products (`products`: name → sku)."""
-    names = {normalize_text(n): sku for n, sku in products.items()}
+    """Match names to a unique SKU (`products`: SKU → name); ambiguous names need manual review."""
+    names: dict[str, set[str]] = {}
+    for sku, name in products.items():
+        key = normalize_text(name)
+        if key:
+            names.setdefault(key, set()).add(sku)
     keys = list(names)
     out: list[ReceiptLine] = []
     for line in reading.lines:
         key = normalize_text(line.name)
-        sku = names.get(key)
-        if sku is None:
-            close = difflib.get_close_matches(key, keys, n=1, cutoff=cutoff)
-            sku = names[close[0]] if close else None
-        out.append(line.model_copy(update={"sku": sku or "", "matched": sku is not None}))
+        candidates = names.get(key, set())
+        if key and key not in names:
+            close = difflib.get_close_matches(key, keys, n=2, cutoff=cutoff)
+            if close:
+                candidates = names[close[0]]
+                if len(close) == 2 and (difflib.SequenceMatcher(None, close[0], key).ratio()
+                                        == difflib.SequenceMatcher(None, close[1], key).ratio()):
+                    candidates = candidates | names[close[1]]
+        sku = next(iter(candidates)) if len(candidates) == 1 else ""
+        out.append(line.model_copy(update={"sku": sku, "matched": bool(sku)}))
     return reading.model_copy(update={"lines": out})
 
 
