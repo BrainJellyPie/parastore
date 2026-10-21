@@ -494,6 +494,9 @@ For brand managers, category teams and research agencies (**Market** in the comm
   **Reconcile POS purchases** matches anonymous transaction lines to fixed assignment IDs and the exact target SKU.
   It proposes only unknown enrolled purchases, flags conflicts and unlinked records, and hands the complete candidate
   sheet to the existing review/history workflow. Missing transactions never become nonpurchases.
+  **Staff and shift sensitivity** checks completed, locked pilots by leaving out each staff alias, shift ID
+  and staff/shift block in turn, with the original planned weights renormalized. It exports all deletion
+  estimates and flags opposite signs without producing new hypothesis tests or staff performance rankings.
 
 - **Shopper interviews** — in playback, the **Shoppers** tab follows one shopper's path and thoughts step by step,
   then lets you ask that shopper why ("why didn't you buy anything at the snack shelf?"); answers come from their
