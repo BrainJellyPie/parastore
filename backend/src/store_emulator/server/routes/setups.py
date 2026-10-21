@@ -8,6 +8,7 @@ from store_emulator.application import setups as setup_service
 from store_emulator.application import generation_async
 from store_emulator.application.errors import AppError
 from store_emulator.application.storage.generations import read_status
+from store_emulator.domain.types import ResourceId
 from store_emulator.server.deps import get_config
 from store_emulator.server.schemas import (
     ClearedSlotInfo,
@@ -45,7 +46,7 @@ class SlotInputRow(BaseModel):
     level: int = Field(description="level (1~4 range)")
     sku: str = Field(default="", description="item SKU. Empty value means the slot is treated as empty and excluded from the registered count")
     name: str = Field(default="", description="display name for the SKU")
-    price: int = Field(default=0, description="unit: US cents (e.g. 549 = $5.49)")
+    price: int = Field(default=0, ge=0, description="unit: US cents (e.g. 549 = $5.49)")
     promo: str = Field(default="", description="promotion label for the SKU")
 
 
@@ -63,7 +64,7 @@ class CreateSetupRequest(BaseModel):
     - empty: `source_setup_id` optional (used as parentId if given; otherwise root setup).
     """
     mode: Literal["racks_and_items", "racks", "empty"] = Field(description="generation mode")
-    source_setup_id: str | None = Field(
+    source_setup_id: ResourceId | None = Field(
         default=None,
         description="source setup id to copy from. Optional when mode=empty.",
     )
@@ -226,7 +227,8 @@ async def regenerate_persona(pid: str, sid: str) -> RegeneratePersonaResponse:
 
     **Errors:**
     - 404: setup not found
-    - 409: simulation history exists (`personas_locked`) or the setup already has an active generation (`generation_in_progress`)
+    - 409: a simulation is running, simulation history exists, this setup has an active generation,
+      or persona generation is active anywhere in the project
     """
     try:
         gen_id = generation_async.start_persona_generation(

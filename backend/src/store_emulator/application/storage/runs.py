@@ -63,9 +63,13 @@ def build_manifest(store: Store, personas: list[Persona], config: SimulationConf
     except PackageNotFoundError:
         pkg = ""
     llm = config.llm_for(config.engine_type)
+    model = llm.model
+    if config.ensemble is not None:
+        model = f"ensemble[{config.ensemble.mode}]: " + ", ".join(
+            f"{m.name}×{m.weight:g}" for m in config.ensemble.members)
     return RunManifest(
         engine_type=config.engine_type.value,
-        model=llm.model if config.engine_type.value != "rule_based" else "",
+        model=model if config.engine_type.value != "rule_based" else "",
         seed=config.seed,
         replicate=config.replicate,
         exposure_model=config.exposure_model,
@@ -74,6 +78,8 @@ def build_manifest(store: Store, personas: list[Persona], config: SimulationConf
         persona_fingerprint=fingerprint([p.model_dump() for p in personas]),
         package_version=pkg,
         created_at=now_iso(),
+        scenario=config.scenario.name if config.scenario else "",
+        scenario_id=config.scenario.id if config.scenario else "",
     )
 
 

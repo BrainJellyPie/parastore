@@ -1,6 +1,5 @@
 // A cell can host two racks only in the entrance+exit pair case; all other types
-// are single-rack. Multi-cell racks (legacy shape ≠ [[1]]) render only at rack.position
-// with no spanning — the editor only produces 1×1 racks, so this is a safe fallback.
+// are single-rack. Dining groups occupy four cells, each selecting the same fixture.
 
 import {
   Boxes,
@@ -8,6 +7,7 @@ import {
   DoorClosed,
   DoorOpen,
   Refrigerator,
+  Armchair,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Position, Rack, RackType, BlockedFaceDetail } from "@/shared/types/domain";
@@ -34,7 +34,7 @@ const RACK_VISUALS: Record<RackType, RackVisual | null> = {
     icon: DoorOpen,
     label: "In",
     bgClass: "bg-emerald-100 dark:bg-emerald-950/40",
-    iconClass: "text-emerald-700 dark:text-emerald-300",
+    iconClass: "text-positive dark:text-emerald-300",
   },
   exit: {
     icon: DoorClosed,
@@ -62,7 +62,7 @@ const RACK_VISUALS: Record<RackType, RackVisual | null> = {
   },
   // Other domain rack types are not produced by the grid editor; render as plain rack.
   display: null,
-  table: null,
+  table: { icon: Armchair, label: "Dining", bgClass: "bg-violet-100 dark:bg-violet-950/40", iconClass: "text-violet-700 dark:text-violet-300" },
   wall: null,
 };
 
@@ -92,11 +92,13 @@ export function GridCell({
         type="button"
         data-testid={`grid-cell-${x}-${y}`}
         data-empty="true"
+        aria-pressed={selected}
         onClick={onClick}
         className={cn(
           "relative aspect-square w-full rounded-md border border-border bg-card text-card-foreground",
           "transition-colors hover:bg-accent hover:text-accent-foreground",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+          selected && "ring-2 ring-primary",
         )}
         aria-label={`empty cell ${x},${y}`}
       />
@@ -111,6 +113,7 @@ export function GridCell({
         data-testid={`grid-cell-${x}-${y}`}
         data-rack-ids={racks.map((r) => r.id).join(",")}
         data-rack-type="entrance_exit"
+        aria-pressed={selected}
         onClick={onClick}
         className={cn(
           "relative grid aspect-square w-full grid-cols-2 overflow-hidden rounded-md border border-border text-card-foreground",
@@ -138,7 +141,7 @@ export function GridCell({
                 />
               ) : null}
               {visual?.label ? (
-                <span className="text-[9px] leading-none font-medium">
+                <span className="text-[0.68rem] leading-none font-medium">
                   {visual.label}
                 </span>
               ) : null}
@@ -165,6 +168,7 @@ export function GridCell({
       data-testid={`grid-cell-${x}-${y}`}
       data-rack-id={rack.id}
       data-rack-type={rack.type}
+      aria-pressed={selected}
       onClick={onClick}
       className={cn(
         "relative aspect-square w-full rounded-md border border-border text-card-foreground",
@@ -188,10 +192,10 @@ export function GridCell({
         />
       ) : null}
       {visual?.label ? (
-        <span className="text-[10px] leading-none font-medium">{visual.label}</span>
+        <span className="text-[0.72rem] leading-none font-medium">{visual.label}</span>
       ) : null}
       {rack.rack_name ? (
-        <span className="max-w-full truncate text-[9px] leading-none text-muted-foreground">
+        <span className="max-w-full truncate text-[0.68rem] leading-none text-muted-foreground">
           {rack.rack_name}
         </span>
       ) : null}

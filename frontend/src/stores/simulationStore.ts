@@ -1,11 +1,24 @@
 import { create } from "zustand";
 
-export type DashboardTab = "dashboard" | "settings";
+export type DashboardTab = "dashboard" | "shoppers" | "settings";
 
 // Which per-tile layer the floor heatmap shows.
 // footfall = timeline events per tile, dwell = seconds spent per tile,
 // traffic = model-predicted shortest-path load between racks (layout only).
 export type HeatmapMode = "off" | "footfall" | "dwell" | "traffic";
+
+// 3D look of the store viewer. Persisted locally; survives reset(). Realistic unless the viewer
+// chose classic (realistic "medium" is tuned to run under software GL too).
+export type GraphicsMode = "classic" | "realistic";
+const GRAPHICS_KEY = "parastore.graphicsMode";
+
+function readGraphicsMode(): GraphicsMode {
+  try {
+    return localStorage.getItem(GRAPHICS_KEY) === "classic" ? "classic" : "realistic";
+  } catch {
+    return "realistic";
+  }
+}
 
 interface SimulationState {
   highlightId: string | null;
@@ -25,6 +38,12 @@ interface SimulationState {
   hoveredRackId: string | null;
   selectedRackId: string | null;
 
+  graphicsMode: GraphicsMode;
+  // First-person camera at a shopper's eye height (playback only).
+  shopperView: boolean;
+  // Shopper the first-person camera follows; null → first shopper in the store.
+  followPersonaId: string | null;
+
   setHighlightId: (id: string | null) => void;
   setHeatmapMode: (mode: HeatmapMode) => void;
   toggleRackOverlay: () => void;
@@ -35,6 +54,9 @@ interface SimulationState {
   setCurrency: (code: string) => void;
   setHoveredRackId: (id: string | null) => void;
   setSelectedRackId: (id: string | null) => void;
+  setGraphicsMode: (mode: GraphicsMode) => void;
+  setShopperView: (on: boolean) => void;
+  setFollowPersonaId: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -49,10 +71,13 @@ const INITIAL = {
   currency: "USD",
   hoveredRackId: null,
   selectedRackId: null,
+  shopperView: false,
+  followPersonaId: null,
 };
 
 export const useSimulationStore = create<SimulationState>((set) => ({
   ...INITIAL,
+  graphicsMode: readGraphicsMode(),
 
   setHighlightId: (id) => set({ highlightId: id }),
   setHeatmapMode: (mode) => set({ heatmapMode: mode }),
@@ -64,5 +89,15 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   setCurrency: (code) => set({ currency: code }),
   setHoveredRackId: (id) => set({ hoveredRackId: id }),
   setSelectedRackId: (id) => set({ selectedRackId: id }),
+  setGraphicsMode: (mode) => {
+    try {
+      localStorage.setItem(GRAPHICS_KEY, mode);
+    } catch {
+      // Storage unavailable — keep the in-memory value.
+    }
+    set({ graphicsMode: mode });
+  },
+  setShopperView: (on) => set({ shopperView: on }),
+  setFollowPersonaId: (id) => set({ followPersonaId: id }),
   reset: () => set(INITIAL),
 }));

@@ -12,7 +12,7 @@ import {
   useState,
   useEffect,
 } from "react";
-import { Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Trash2 } from "lucide-react";
 import { Card } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
@@ -33,7 +33,7 @@ import { RackPreview } from "./RackPreview";
 // - counter : counter — branched via the design dropdown
 // - gate    : entrance / exit / both — branched via the gateConfig select
 //             (a single cell may hold both entrance + exit racks)
-type UiKind = "gate" | "rack" | "counter";
+type UiKind = "gate" | "rack" | "counter" | "table";
 
 // A cell may legitimately hold entrance + exit racks together (backend allows it).
 export type GateConfig = "entrance" | "exit" | "both";
@@ -92,6 +92,7 @@ function deriveUiState(racks: EditorRack[]): {
   }
   // Non-gate types assume a single rack at the cell.
   const rack = racks[0]!;
+  if (rack.type === "table") return { kind: "table", rackDesign: "shelf_a", counterDesign: "counter_a", gateConfig: "entrance" };
   const variant: "a" | "b" | "c" = rack.design_variant ?? "a";
   if (rack.type === "counter") {
     return {
@@ -127,11 +128,14 @@ export interface RackEditPanelProps {
   onChange: (patch: Partial<EditorRack> | null) => void;
   /** Toggle gate mode / config. Parent owns entrance/exit rack add/remove. */
   onGateConfigChange: (config: GateConfig) => void;
+  onMove?: (offset: Position) => void;
+  placing?: boolean;
+  onPlacementChange?: (placing: boolean) => void;
 }
 
 export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>(
   function RackEditPanel(
-    { selectedCell, selectedCellRacks, selectedRack, onChange, onGateConfigChange },
+    { selectedCell, selectedCellRacks, selectedRack, onChange, onGateConfigChange, onMove, placing = false, onPlacementChange },
     ref,
   ) {
     // Local state for the text input — synced when selectedRack changes.
@@ -181,10 +185,14 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
     const gateConfig: GateConfig = ui?.gateConfig ?? "entrance";
     const rotation: 0 | 90 | 180 | 270 = selectedRack?.rotation ?? 0;
 
-    const showNameAndDesign = kind === "rack" || kind === "counter";
+    const showNameAndDesign = kind === "rack" || kind === "counter" || kind === "table";
     const showGateConfig = kind === "gate";
 
     function handleKindChange(next: UiKind) {
+      if (next === "table") {
+        onChange({ type: "table", shape: [[1, 1], [1, 1]], slots: [], locked_faces: [], design_variant: "a" });
+        return;
+      }
       if (next === "gate") {
         // Entering gate mode — parent handles entrance/exit add/remove.
         // Default to entrance-only.
@@ -193,12 +201,12 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
       }
       if (next === "counter") {
         const opt = COUNTER_DESIGNS.find((d) => d.key === counterDesign) ?? COUNTER_DESIGNS[0]!;
-        onChange({ type: opt.type, design_variant: opt.design_variant });
+        onChange({ type: opt.type, shape: [[1]], design_variant: opt.design_variant });
         return;
       }
       // rack
       const opt = RACK_DESIGNS.find((d) => d.key === rackDesign) ?? RACK_DESIGNS[0]!;
-      onChange({ type: opt.type, design_variant: opt.design_variant });
+      onChange({ type: opt.type, shape: [[1]], design_variant: opt.design_variant });
     }
 
     function handleRackDesignChange(key: RackDesignKey) {
@@ -265,6 +273,21 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
           <p className="text-sm text-muted-foreground">Choose a type to add a rack.</p>
         )}
 
+        {hasAnyRack && onMove && <div className="space-y-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Move one cell</span>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Move selected fixture">
+            {([
+              ["left", -1, 0, ArrowLeft], ["up", 0, -1, ArrowUp],
+              ["down", 0, 1, ArrowDown], ["right", 1, 0, ArrowRight],
+            ] as const).map(([direction, dx, dy, Icon]) => <Button key={direction} type="button" variant="outline" size="icon-sm"
+              disabled={placing} aria-label={`Move fixture ${direction}`} onClick={() => onMove([dx, dy])}><Icon className="size-4" /></Button>)}
+            {onPlacementChange && <Button type="button" variant={placing ? "secondary" : "outline"} size="sm"
+              onClick={() => onPlacementChange(!placing)}>{placing ? "Cancel placement" : "Move to a cell"}</Button>}
+          </div>
+          {placing && <p role="status" className="text-xs text-primary">Click a clear grid cell for the fixture’s top-left corner. Press Escape to cancel.</p>}
+          {gateConfig === "both" && kind === "gate" && <p className="text-xs text-muted-foreground">Entrance and exit move together.</p>}
+        </div>}
+
         <div
           className={
             !cellSelected
@@ -287,6 +310,7 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
                 [
                   { key: "rack", label: "Rack" },
                   { key: "counter", label: "Counter" },
+                  { key: "table", label: "Dining table" },
                   { key: "gate", label: "Entrance/Exit" },
                 ] as const
               ).map(({ key, label }) => (
@@ -341,7 +365,7 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
                   htmlFor="rack-name-input"
                   className="text-xs font-medium text-muted-foreground"
                 >
-                  {kind === "counter" ? "Counter name" : "Rack name"}
+                  {kind === "counter" ? "Counter name" : kind === "table" ? "Table name" : "Rack name"}
                 </label>
                 <Input
                   id="rack-name-input"
@@ -354,7 +378,7 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              {kind === "table" ? <p className="text-xs text-muted-foreground">2×2 cells, including four chairs. Furniture only; table service is not simulated.</p> : <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted-foreground">Design</span>
                 {kind === "rack" ? (
                   <Select
@@ -397,7 +421,7 @@ export const RackEditPanel = forwardRef<RackEditPanelHandle, RackEditPanelProps>
                     </SelectContent>
                   </Select>
                 )}
-              </div>
+              </div>}
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted-foreground">Rotation</span>

@@ -1,4 +1,4 @@
-# AGENTS.md — Parastore
+# AGENTS.md — TwinStore
 
 Conventions and orientation for AI coding agents (Claude Code, Cursor,
 Codex, Aider, …) working in this repository. Human contributors should also
@@ -12,8 +12,8 @@ find it useful.
 
 ## What this project is
 
-Parastore is an isometric 3D store-layout simulator with LLM-driven virtual
-personas. See [`README.md`](./README.md) for the user-facing description and
+TwinStore (built on intellicia's open-source Parastore) is a store digital twin:
+an isometric 3D store-layout simulator with LLM/VLM-driven virtual personas. See [`README.md`](./README.md) for the user-facing description and
 local-run instructions; this file covers everything you need to make a clean
 contribution.
 
@@ -23,8 +23,12 @@ contribution.
 parastore/
   backend/   — Python 3.13+ FastAPI + LiteLLM + Instructor + pathfinding
   frontend/  — Vite + React 19 + R3F (Three.js) + Zustand + Tailwind v4 + shadcn/ui + Recharts
+  launcher/  — Go one-click launcher (TwinStore.exe / TwinStore.app / twinstore), icon, release build
   scripts/   — dev/build helper scripts
 ```
+
+Internal identifiers keep the original `parastore` prefix for compatibility (`PARASTORE_*`
+environment variables, browser storage keys, the repository name); user-facing text says TwinStore.
 
 Local run: `./scripts/dev.sh` (see README for prerequisites).
 
@@ -101,7 +105,7 @@ that has all the imports I need?" and put it there.
 - State: Zustand stores in `src/stores/` (one store per concern — playback,
   simulation metrics, simulation lifecycle).
 - Feature folders under `src/features/` are self-contained
-  (`{dashboard,grid-editor,layouts,playback,setup,store-viewer}`); shared
+  (`{capture,dashboard,grid-editor,layouts,marketing,playback,setup,store-viewer,town,…}`); shared
   primitives go in `src/shared/`.
 - 3D rendering uses React Three Fiber (`@react-three/fiber` + `drei`) with
   isometric camera; GLB assets live under `public/assets/{market,characters,ghost}/`

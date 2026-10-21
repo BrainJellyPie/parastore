@@ -13,11 +13,13 @@ from store_emulator.application.storage.io import read_json, write_json
 from store_emulator.application.storage.setups import (
     metadata_path, personas_path, read_setup,
 )
-from store_emulator.application.supplemental import summarize_supplemental
+from store_emulator.application.supplemental import summarize_supplemental, traffic_from_supplemental
 from store_emulator.domain.config import SimulationConfig
 from store_emulator.domain.persona import Persona
 from store_emulator.domain.store import DaySchedule
 from store_emulator.engine.generators import persona as gen_persona
+from store_emulator.engine.generators.traffic_profile import TrafficProfile
+from store_emulator.application.providers import resolve_model
 from store_emulator.engine.llm_client import LiteLLMClient
 
 logger = logging.getLogger(__name__)
@@ -38,11 +40,13 @@ def start_persona_generation(
     spec §4.3 — supplemental_bytes / supplemental_filename are keyword-only.
     When provided, _run_persona_background summarizes them and updates metadata.
 
-    - Any in-flight generation (regardless of kind) → AppError(409).
-    - Simulation history present → personas locked → AppError(409).
+    - Any generation on this setup, or persona generation anywhere in the project → AppError(409).
+    - Running simulation or simulation history present → personas locked → AppError(409).
     - `ignore_active_gen_id`: lets a layout-chain caller skip its own gen_id
       from the active check. External callers pass None.
     """
+    if not metadata_path(project_id).is_file():
+        raise AppError(f"Project not found: {project_id}", 404)
     setup = read_setup(project_id, setup_id)
     if not setup:
         raise AppError(f"Setup not found: {setup_id}", 404)
@@ -54,9 +58,16 @@ def start_persona_generation(
             f"a {active.get('kind')} generation is already in progress (gen={active.get('gen_id')})", 409,
         )
 
+    active_personas = find_active_generation(project_id, kind="persona")
+    if active_personas and active_personas.get("gen_id") != ignore_active_gen_id:
+        raise AppError("persona generation is already in progress for this project.", 409)
+
     # Sim run present → personas locked; prevent overwrite.
     from store_emulator.application.storage.setups import list_setups as _list_setups
-    if any(s.get("runId") for s in _list_setups(project_id)):
+    setups = _list_setups(project_id)
+    if any(s.get("status") == "running" for s in setups):
+        raise AppError("personas cannot be regenerated while a simulation is running.", 409)
+    if any(s.get("runId") for s in setups):
         raise AppError("personas cannot be regenerated because the project has simulation history.", 409)
 
     gen_id = init_generation(project_id, setup_id, "persona")
@@ -120,7 +131,7 @@ async def _run_async_pipeline(
     Single LLM instance (token usage aggregated).
     Race / write failures stay isolated in effective_summary.
     """
-    llm = LiteLLMClient(config.llm)
+    llm = LiteLLMClient(resolve_model(config.llm.model, base=config.llm))
 
     # Default to metadata's existing supplemental_summary. Even when
     # supplemental_bytes is None (manual call, restart, etc.) a previously-stored
@@ -150,6 +161,19 @@ async def _run_async_pipeline(
                 )
                 effective_summary = ""
 
+    traffic = _stored_traffic(meta)
+    if supplemental_bytes is not None:
+        fitted = traffic_from_supplemental(supplemental_bytes, supplemental_filename)
+        if fitted is not None:
+            traffic = fitted
+            try:
+                latest_meta = cast(dict[str, object], read_json(metadata_path(project_id)))
+                latest_meta["traffic_profile"] = fitted.model_dump(mode="json")
+                write_json(metadata_path(project_id), latest_meta)
+            except Exception:
+                logger.warning("[supplemental] could not store the traffic profile", exc_info=True)
+            logger.info(f"[supplemental] visit times follow the uploaded data ({fitted.source})")
+
     return await _generate_personas_impl(
         llm=llm,
         address=str(meta.get("address", "")),
@@ -157,8 +181,20 @@ async def _run_async_pipeline(
         schedules=schedules,
         custom_instruction=custom_instruction,
         supplemental_summary=effective_summary,
-        currency=config.currency,
+        currency=str(meta.get("currency") or config.currency),
+        traffic=traffic,
     )
+
+
+def _stored_traffic(meta: dict[str, object]) -> TrafficProfile | None:
+    raw = meta.get("traffic_profile")
+    if not raw:
+        return None
+    try:
+        return TrafficProfile.model_validate(raw)
+    except ValueError:  # pydantic's ValidationError
+        logger.warning("[supplemental] stored traffic profile is unreadable; ignoring it")
+        return None
 
 
 async def _generate_personas_impl(
@@ -171,6 +207,7 @@ async def _generate_personas_impl(
     *,
     supplemental_summary: str = "",
     currency: str = "USD",
+    traffic: TrafficProfile | None = None,
 ) -> list[Persona]:
     """Internal impl accepting an LLM instance, with supplemental_summary support.
 
@@ -183,6 +220,7 @@ async def _generate_personas_impl(
         seed=seed, custom_instruction=custom_instruction,
         supplemental_summary=supplemental_summary,
         currency=currency,
+        traffic=traffic,
     )
     usage = llm.get_usage()
     logger.info(f"[persona generation] {len(all_personas)} personas done | {usage.total_tokens} tokens")

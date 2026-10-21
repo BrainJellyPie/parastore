@@ -94,6 +94,9 @@ class RunManifest(BaseModel):
     persona_fingerprint: str = ""
     package_version: str = ""
     created_at: str = ""
+    scenario: str = ""          # scenario name ("" = ordinary day)
+    scenario_id: str = ""
+    town: str = ""              # neighborhood the visitors were drawn from ("" = persona pool as is)
 
 
 class AggregatedResult(BaseModel):

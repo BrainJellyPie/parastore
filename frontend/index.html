@@ -1,9 +1,19 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Parastore — Store Emulator</title>
+    <link rel="icon" type="image/png" href="/twinstore-icon.png" />
+    <meta name="color-scheme" content="light dark" />
+    <title>TwinStore</title>
+    <script>
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("parastore-theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        if (t === "dark") document.documentElement.classList.add("dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

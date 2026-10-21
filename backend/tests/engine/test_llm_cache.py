@@ -30,3 +30,63 @@ def test_seed_is_only_sent_when_enabled():
     assert isinstance(kwargs["seed"], int) and kwargs["api_base"] == "http://127.0.0.1:8080/v1"
     assert on._call_kwargs(3) == on._call_kwargs(3)  # pyright: ignore[reportPrivateUsage]
     assert on._call_kwargs(3)["seed"] != on._call_kwargs(4)["seed"]  # pyright: ignore[reportPrivateUsage]
+
+
+def test_cache_key_includes_endpoint(tmp_path):
+    a = LiteLLMClient(LLMConfig(model="openai/local", cache_dir=str(tmp_path), api_base="http://127.0.0.1:8081/v1"))
+    b = LiteLLMClient(LLMConfig(model="openai/local", cache_dir=str(tmp_path), api_base="http://127.0.0.1:8082/v1"))
+    msgs = [{"role": "user", "content": "hi"}]
+    assert a._cache_path(_Answer, msgs, seed=1) != b._cache_path(_Answer, msgs, seed=1)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_rejected_optional_params_are_learned_and_dropped():
+    from store_emulator.engine import llm_client as lc
+
+    model = "anthropic/test-model-no-temperature"
+    client = LiteLLMClient(LLMConfig(model=model))
+    first = client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    assert "temperature" in first and first["thinking"] == {"type": "disabled"}
+    err = RuntimeError('AnthropicException - {"message":"`temperature` is deprecated for this model."}')
+    assert lc._should_retry_without(model, err, first)  # pyright: ignore[reportPrivateUsage]
+    # A call that was already in flight with the parameter is retried as well …
+    assert lc._should_retry_without(model, err, first)  # pyright: ignore[reportPrivateUsage]
+    # … but not one that was sent without it (then the error is something else).
+    second = client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    assert "temperature" not in second
+    assert not lc._should_retry_without(model, err, second)  # pyright: ignore[reportPrivateUsage]
+    assert not lc._should_retry_without(model, RuntimeError("rate limit exceeded"), first)  # pyright: ignore[reportPrivateUsage]
+    other = LiteLLMClient(LLMConfig(model="openai/local"))
+    assert "temperature" in other._call_kwargs(None) and "thinking" not in other._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_max_tokens_is_renamed_when_the_model_wants_max_completion_tokens() -> None:
+    from store_emulator.domain.config import LLMConfig
+    from store_emulator.engine import llm_client as lc
+
+    client = lc.LiteLLMClient(LLMConfig(model="openai/test-renamed-max-tokens", api_base="http://127.0.0.1:9/v1"))
+    sent = client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    assert "max_tokens" in sent
+    err = RuntimeError("Unsupported parameter: 'max_tokens' is not supported with this model. "
+                       "Use 'max_completion_tokens' instead.")
+    assert lc._should_retry_without(client.model, err, sent)  # pyright: ignore[reportPrivateUsage]
+    again = client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    assert "max_tokens" not in again and again["max_completion_tokens"] == sent["max_tokens"]
+
+
+def test_openai_reasoning_is_switched_off_and_dropped_when_refused(tmp_path) -> None:
+    from store_emulator.engine import llm_client as lc
+
+    model = "openai/gpt-test-reasoning"
+    client = lc.LiteLLMClient(LLMConfig(model=model, cache_dir=str(tmp_path)))
+    sent = client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    assert sent["extra_body"] == {"reasoning_effort": "none"}
+    # Only OpenAI's own endpoint: a local OpenAI-compatible server gets no such switch.
+    local = lc.LiteLLMClient(LLMConfig(model="openai/gpt-local", api_base="http://127.0.0.1:9/v1"))
+    assert "extra_body" not in local._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]
+    # The switch is part of the cache key, so answers given with reasoning on are not reused.
+    msgs = [{"role": "user", "content": "hi"}]
+    plain = lc.LiteLLMClient(LLMConfig(model="openai/other", cache_dir=str(tmp_path)))
+    assert client._cache_path(_Answer, msgs, seed=1) != plain._cache_path(_Answer, msgs, seed=1)  # pyright: ignore[reportPrivateUsage]
+    err = RuntimeError("Unsupported value: 'reasoning_effort' does not support 'none' with this model.")
+    assert lc._should_retry_without(model, err, sent)  # pyright: ignore[reportPrivateUsage]
+    assert "extra_body" not in client._call_kwargs(None)  # pyright: ignore[reportPrivateUsage]

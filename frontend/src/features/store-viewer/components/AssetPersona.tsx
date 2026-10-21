@@ -1,14 +1,17 @@
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Html, useAnimations, useGLTF } from "@react-three/drei";
+import { Html, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
 import type { TimelineEvent } from "@/shared/types/domain";
-import { characterAssetFor, ALL_CHARACTER_ASSETS } from "@/shared/utils/assetMap";
+import { characterAssetFor, characterAnimationPhase, realisticCharacterAssetFor } from "@/shared/utils/assetMap";
 import { useGlbModel } from "@/shared/hooks/useGlbModel";
 import { formatMoney } from "@/shared/utils/money";
 import { useSimulationStore } from "@/stores/simulationStore";
-
-ALL_CHARACTER_ASSETS.forEach((url) => useGLTF.preload(url));
+import { usePlaybackControlStore } from "@/stores/playbackControlStore";
+import { M, PERSONA_SCALE } from "../realistic/constants";
+import { angleDelta } from "../realistic/shopperPose";
+import { shopperBlinkWeight } from "../realistic/shopperBlink";
+import { shopperGazeOffset } from "../realistic/shopperGaze";
 
 const CHARACTER_TARGET_HEIGHT = 0.6;
 
@@ -72,27 +75,85 @@ interface AssetPersonaProps {
 interface CharacterMeshProps {
   url: string;
   animName: string;
+  realistic: boolean;
+  personaId: string;
 }
 
-function CharacterMesh({ url, animName }: CharacterMeshProps) {
+function CharacterMesh({ url, animName, realistic, personaId }: CharacterMeshProps) {
   const { clone, bbox, offset, animations } = useGlbModel(url, {
     skinned: true,
     castShadow: true,
-    receiveShadow: false,
+    receiveShadow: realistic,
   });
   const rawH = bbox.size.y > 0.001 ? bbox.size.y : 1;
-  const scale = CHARACTER_TARGET_HEIGHT / rawH;
+  // Rocketbox is authored in metres. Preserve each avatar's actual height;
+  // PersonaRig applies the parent scale to labels and the whole shopper group.
+  const scale = realistic ? M / PERSONA_SCALE : CHARACTER_TARGET_HEIGHT / rawH;
 
-  const { actions } = useAnimations(animations, clone);
+  const { actions, mixer } = useAnimations(animations, clone);
+  const previousAction = useRef<THREE.AnimationAction | null>(null);
+  const playing = usePlaybackControlStore((s) => s.playing);
+  const facialTargets = useMemo(() => {
+    const targets: { weights: number[]; indices: Partial<Record<"blink" | "lookLeft" | "lookRight" | "lookUp" | "lookDown", number>> }[] = [];
+    if (realistic) clone.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      if (object.morphTargetDictionary && object.morphTargetInfluences) {
+        targets.push({ weights: object.morphTargetInfluences, indices: object.morphTargetDictionary });
+      }
+    });
+    return targets;
+  }, [clone, realistic]);
+  const facialTime = useRef(0);
+  const blinkPhase = characterAnimationPhase(`${personaId}:blink`);
+  const gazePhase = characterAnimationPhase(`${personaId}:gaze`);
+  useFrame((_, delta) => {
+    if (!realistic || !usePlaybackControlStore.getState().playing) return;
+    facialTime.current += Math.min(delta, 0.1);
+    const blink = shopperBlinkWeight(facialTime.current, blinkPhase);
+    // Gaze shapes include eyelid movement. Fade them under a blink so the
+    // independent authored deformations cannot pull a closed eyelid open.
+    const horizontal = shopperGazeOffset(facialTime.current, gazePhase) * (1 - blink);
+    const vertical = shopperGazeOffset(facialTime.current, gazePhase, true) * (1 - blink);
+    for (const { weights, indices } of facialTargets) {
+      if (indices.blink !== undefined) weights[indices.blink] = blink;
+      if (indices.lookLeft !== undefined) weights[indices.lookLeft] = Math.max(0, -horizontal);
+      if (indices.lookRight !== undefined) weights[indices.lookRight] = Math.max(0, horizontal);
+      if (indices.lookDown !== undefined) weights[indices.lookDown] = Math.max(0, -vertical);
+      if (indices.lookUp !== undefined) weights[indices.lookUp] = Math.max(0, vertical);
+    }
+  });
+
+  useEffect(() => {
+    mixer.timeScale = realistic && !playing ? 0 : 1;
+  }, [mixer, playing, realistic]);
+
+  useEffect(() => () => {
+    mixer.stopAllAction();
+    mixer.uncacheRoot(clone);
+    const skeletons = new Set<THREE.Skeleton>();
+    clone.traverse((object) => {
+      if (object instanceof THREE.SkinnedMesh) skeletons.add(object.skeleton);
+    });
+    // SkeletonUtils gives each shopper their own GPU bone texture. The cached
+    // model still owns the geometry and PBR textures shared by the crowd.
+    for (const skeleton of skeletons) skeleton.dispose();
+  }, [clone, mixer]);
 
   useEffect(() => {
     const action = actions[animName];
     if (!action) return;
-    action.reset().fadeIn(0.15).play();
-    return () => {
-      action.fadeOut(0.15);
-    };
-  }, [animName, actions]);
+    const previous = previousAction.current;
+    action.reset().stopFading().setEffectiveWeight(1).play();
+    if (realistic) action.time = action.getClip().duration * characterAnimationPhase(personaId);
+    if (previous && previous !== action) {
+      if (!realistic || usePlaybackControlStore.getState().playing) action.crossFadeFrom(previous, 0.15, false);
+      else previous.stop();
+    }
+    // A paused mixer cannot advance a fade from zero weight. Apply the first
+    // pose immediately so newly loaded shoppers never remain in their bind pose.
+    mixer.update(0);
+    previousAction.current = action;
+  }, [animName, actions, mixer, realistic, personaId]);
 
   return (
     <group scale={scale}>
@@ -112,13 +173,28 @@ export function AssetPersona({
   highlighted,
   dimmed,
 }: AssetPersonaProps) {
-  const url = characterAssetFor(personaId, gender);
-  const scale = highlighted ? 1.2 : 1;
-  const animName = animationFor(isMoving, event);
-  const isPaying = event?.action === "pay";
+  const realistic = useSimulationStore((s) => s.graphicsMode === "realistic");
+  const url = realistic ? realisticCharacterAssetFor(personaId, gender) : characterAssetFor(personaId, gender);
+  const scale = highlighted && !realistic ? 1.2 : 1;
+  const idleName = characterAnimationPhase(`${personaId}:idle-motion`) < 0.5 ? "idle" : "wait";
+  const animName = realistic
+    ? (isMoving ? "walk" : event?.action === "browse" ? "browse" : idleName)
+    : animationFor(isMoving, event);
+  const isPaying = !realistic && event?.action === "pay";
 
   const bounceRef = useRef<THREE.Group>(null);
-  useFrame(() => {
+  const turnRef = useRef<THREE.Group>(null);
+  const turnReady = useRef(false);
+  useFrame((_, delta) => {
+    const turn = turnRef.current;
+    if (turn) {
+      if (!turnReady.current || !realistic || !usePlaybackControlStore.getState().playing) {
+        turn.rotation.y = facing;
+        turnReady.current = true;
+      } else {
+        turn.rotation.y += angleDelta(turn.rotation.y, facing) * (1 - Math.exp(-12 * Math.min(delta, 0.1)));
+      }
+    }
     if (!bounceRef.current) return;
     if (isPaying) {
       const t = (performance.now() % 400) / 400;
@@ -131,8 +207,10 @@ export function AssetPersona({
   return (
     <group scale={scale}>
       <group ref={bounceRef}>
-      <group rotation={[0, facing, 0]}>
-        <CharacterMesh url={url} animName={animName} />
+      <group ref={turnRef} name="shopper-heading">
+        <Suspense fallback={null}>
+          <CharacterMesh key={url} url={url} animName={animName} realistic={realistic} personaId={personaId} />
+        </Suspense>
       </group>
       {highlighted && (
         <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>

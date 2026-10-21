@@ -11,25 +11,34 @@ from typing import Any, cast
 from pydantic import BaseModel, Field
 
 from store_emulator.domain.analysis import ComparisonReport, FidelityReport
-from store_emulator.domain.config import EngineType, ExposureModel, RouteOrdering, SimulationConfig
+from store_emulator.domain.config import EngineType, ExposureModel, PlanPolicy, RouteOrdering, SimulationConfig
 from store_emulator.domain.customer import CustomerResult
+from store_emulator.domain.movement import MovementReport
 from store_emulator.domain.persona import Persona
+from store_emulator.domain.providers import EnsembleConfig
+from store_emulator.domain.scenario import Scenario
 from store_emulator.domain.result import AggregatedResult
 from store_emulator.domain.runner import ProgressCallback, SimulationRunner
 from store_emulator.domain.store import Store
 from store_emulator.domain.types import stable_seed
 from store_emulator.application.pos import parse_pos_csv
+from store_emulator.application.movement import read_movement, score_movement
 from store_emulator.application.presets.behavior import BEHAVIOR_PATTERNS
 from store_emulator.application.runner import build_runner
+from store_emulator.application.scenarios import get_preset, prepare_inputs
+from store_emulator.application.town import get_town, town_visitors
+from store_emulator.domain.town import TownArrival
 from store_emulator.application.storage.io import DATA_DIR, read_json, write_json, now_iso
 from store_emulator.application.storage.setups import (
     read_setup, write_setup, personas_path, metadata_path,
 )
 from store_emulator.application.storage.runs import load_run_results, load_run_store, save_run
+from store_emulator.application.storage import images as image_storage
 from store_emulator.engine.analysis.compare import compare_runs, customer_metrics
 from store_emulator.engine.analysis.fidelity import fidelity_report
 
 from store_emulator.application.errors import AppError
+from store_emulator.application.currencies import simulation_currency
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +56,18 @@ class RunOptions(BaseModel):
     max_customers: int | None = Field(default=None, ge=1)
     # Preview runs do not lock the setup and may run on draft or finalized setups.
     preview: bool = False
+    # Model reference ("anthropic:claude-haiku-5-5", "qwen:qwen3.7-plus", …) for the engine's model.
+    model: str | None = None
+    # Several models as one consumer population (overrides `model`).
+    ensemble: EnsembleConfig | None = None
+    # Situation of the run: a preset id ("heatwave_weekend") or a full scenario.
+    scenario_id: str | None = None
+    scenario: Scenario | None = None
+    # Draw visitors from the project's neighborhood model (distance, competitors, linked trips).
+    use_town: bool = False
+    town_scale: float = Field(default=1.0, gt=0.0, le=5.0)
+    # Vision shoppers: who plans the visit ("vlm": the model at the entrance; "rule": rule planner).
+    plan_policy: PlanPolicy | None = None
 
 
 def apply_options(config: SimulationConfig, options: RunOptions) -> SimulationConfig:
@@ -55,7 +76,37 @@ def apply_options(config: SimulationConfig, options: RunOptions) -> SimulationCo
         value = getattr(options, field)
         if value is not None:
             updates[field] = value
-    return config.model_copy(update=updates)
+    if options.ensemble is not None:
+        updates["ensemble"] = options.ensemble
+    if options.scenario is not None:
+        updates["scenario"] = options.scenario
+    elif options.scenario_id:
+        preset = get_preset(options.scenario_id)
+        if preset is None:
+            raise ValueError(f"unknown scenario preset: {options.scenario_id}")
+        updates["scenario"] = None if preset.id == "baseline" else preset
+    config = config.model_copy(update=updates)
+    if options.model:
+        config = with_engine_model(config, options.model)
+    if options.plan_policy is not None:
+        vlm = config.engines.vlm_glance.model_copy(update={"plan_policy": options.plan_policy})
+        config = config.model_copy(update={"engines": config.engines.model_copy(update={"vlm_glance": vlm})})
+    return config
+
+
+def with_engine_model(config: SimulationConfig, model: str) -> SimulationConfig:
+    """Point the run's engine (LLM or vision) at another model; sampling settings are kept."""
+    engines = config.engines
+    if config.engine_type == EngineType.VLM_GLANCE:
+        vlm = engines.vlm_glance
+        engines = engines.model_copy(update={"vlm_glance": vlm.model_copy(update={"llm": vlm.llm.model_copy(update={"model": model})})})
+    elif config.engine_type == EngineType.PATTERN_INTENT_IMPULSE:
+        pii = engines.pattern_intent_impulse
+        llm = (pii.llm or config.llm).model_copy(update={"model": model})
+        engines = engines.model_copy(update={"pattern_intent_impulse": pii.model_copy(update={"llm": llm})})
+    else:
+        return config
+    return config.model_copy(update={"engines": engines})
 
 
 def subsample_personas(personas: list[Persona], max_customers: int | None, seed: int) -> list[Persona]:
@@ -81,6 +132,7 @@ async def run_simulation(
     Caller uses the runner to extract engine-specific metadata via
     ``get_engine_metadata()``.
     """
+    config = config.model_copy(update={"currency": store.currency or config.currency})
     runner = build_runner(config)
     aggregated, customers = await runner.run(
         store, personas,
@@ -92,7 +144,7 @@ async def run_simulation(
 
 
 def prepare_simulation(
-    pid: str, setup_id: str, run_id: str | None = None, *, preview: bool = False,
+    pid: str, setup_id: str, run_id: str | None = None, *, preview: bool = False, default_currency: str = "USD",
 ) -> tuple[str, Store, list[Persona], str, str]:
     """Validate, load inputs, and transition state before running. AppError on failure.
 
@@ -101,7 +153,7 @@ def prepare_simulation(
     """
     setup = _validate_simulation(pid, setup_id, preview=preview)
     rid, store, personas, address, customer_profile = _load_simulation_inputs(
-        pid, setup, run_id,
+        pid, setup, run_id, default_currency,
     )
     _mark_simulation_running(pid, setup_id, rid, preview=preview)
     return rid, store, personas, address, customer_profile
@@ -129,7 +181,7 @@ def _validate_simulation(pid: str, setup_id: str, *, preview: bool = False) -> d
 
 
 def _load_simulation_inputs(
-    pid: str, setup: dict[str, Any], run_id: str | None,
+    pid: str, setup: dict[str, Any], run_id: str | None, default_currency: str = "USD",
 ) -> tuple[str, Store, list[Persona], str, str]:
     """Loads Store / Persona / metadata and pre-checks run_id collision."""
     if not setup.get("store"):
@@ -149,6 +201,7 @@ def _load_simulation_inputs(
 
     meta_file = metadata_path(pid)
     meta: dict[str, Any] = read_json(meta_file) if meta_file.exists() else {}
+    store.currency = simulation_currency(pid, store, default_currency)
     address = str(meta.get("address", ""))
     customer_profile = str(meta.get("customer_profile", ""))
     return rid, store, personas, address, customer_profile
@@ -196,11 +249,19 @@ def run_simulation_background(
     options = options or RunOptions()
     try:
         config = apply_options(config, options)
+        config = config.model_copy(update={"currency": store.currency or config.currency})
+        town = get_town(pid) if options.use_town else None
+        arrivals: list[TownArrival] = []
+        if town is not None:
+            personas, arrivals = town_visitors(town, personas, seed=config.seed, scale=options.town_scale,
+                                               scenario=config.scenario)
         personas = subsample_personas(personas, options.max_customers, config.seed)
+        store, personas = prepare_inputs(config, store, personas, traffic_applied=town is not None)
         write_status(
             pid, run_id, "running", total_customers=len(personas), completed_customers=0,
             failed_customers=0, engine_type=config.engine_type.value, seed=config.seed,
             replicate=config.replicate, started_at=now_iso(),
+            scenario=config.scenario.name if config.scenario else "",
         )
         last_write = 0.0
 
@@ -225,6 +286,13 @@ def run_simulation_background(
         meta = runner.get_engine_metadata()
         if meta:
             write_json(run_dir / "output" / f"{config.engine_type}_meta.json", meta)
+        if town is not None:
+            kept = {p.id for p in personas}
+            write_json(run_dir / "output" / "town_arrivals.json",
+                       {"town": town.name, "arrivals": [a.model_dump(mode="json") for a in arrivals if a.persona_id in kept]})
+            manifest_path = run_dir / "output" / "manifest.json"
+            if manifest_path.exists():
+                write_json(manifest_path, {**read_json(manifest_path), "town": town.name})
         write_status(
             pid, run_id, "completed", finished_at=now_iso(),
             completed_customers=len(personas),
@@ -283,12 +351,29 @@ def engine_meta_summary(pid: str, run_id: str, *, max_examples: int = 8) -> dict
     if not isinstance(raw, dict):
         return None
     meta = cast(dict[str, object], raw)
-    summary: dict[str, object] = {k: v for k, v in meta.items() if k != "records"}
+    summary: dict[str, object] = {k: v for k, v in meta.items() if k not in ("records", "plan_records")}
     records = meta.get("records")
     if isinstance(records, list):
         rows = [cast(dict[str, object], r) for r in cast(list[object], records) if isinstance(r, dict)]
         summary["examples"] = [r for r in rows if r.get("outcome") in ("buy", "look")][:max_examples]
+    plans = meta.get("plan_records")
+    if isinstance(plans, list):
+        rows = [cast(dict[str, object], r) for r in cast(list[object], plans) if isinstance(r, dict)]
+        summary["plan_examples"] = rows[:max_examples]
     return summary
+
+
+def get_run_store_view(pid: str, run_id: str) -> Store:
+    """Enrich playback with current SKU photos without changing the run snapshot."""
+    store = load_run_store(_run_base(pid, run_id))
+    manifest = image_storage.load_manifest(pid)
+    if manifest:
+        for rack in store.racks:
+            for slot in rack.slots:
+                for item in slot.items:
+                    if not item.image_url:
+                        item.image_url = image_storage.image_url_for(pid, item.sku, manifest)
+    return store
 
 
 def get_run_input(pid: str, run_id: str, filename: str) -> Any:
@@ -341,9 +426,29 @@ def compare_project_runs(
     pid: str, run_a: str, run_b: str, *, n_bootstrap: int = 2000, seed: int = 0,
 ) -> ComparisonReport:
     """Paired comparison of two completed runs of the same project (B − A)."""
-    a = load_run_results(_completed_run_base(pid, run_a))
-    b = load_run_results(_completed_run_base(pid, run_b))
+    base_a = _completed_run_base(pid, run_a)
+    base_b = _completed_run_base(pid, run_b)
+    currencies: list[str] = []
+    for base in (base_a, base_b):
+        currency = "USD"
+        for relative_path in ("output/summary.json", "input/config.json", "input/store.json"):
+            path = base / relative_path
+            saved: dict[str, object] = read_json(path) if path.exists() else {}
+            value = saved.get("currency")
+            if isinstance(value, str) and value.strip():
+                currency = value.strip().upper()
+                break
+        currencies.append("USD" if currency == "USD_CENTS" else currency)
+    if currencies[0] != currencies[1]:
+        raise AppError(
+            f"These runs use different currencies ({currencies[0]} and {currencies[1]}). "
+            "Compare runs in the same currency; saved monetary values are not converted automatically.",
+            422,
+        )
+    a = load_run_results(base_a)
+    b = load_run_results(base_b)
     report = compare_runs(a, b, run_a=run_a, run_b=run_b, n_bootstrap=n_bootstrap, seed=seed)
+    report.notes.append(f"Spend values in both runs use {currencies[0]} minor units.")
     ma, mb = _manifest_or_empty(pid, run_a), _manifest_or_empty(pid, run_b)
     if ma and mb and (ma.get("seed"), ma.get("replicate")) != (mb.get("seed"), mb.get("replicate")):
         report.notes.append(
@@ -370,6 +475,14 @@ def run_fidelity(pid: str, run_id: str, data: bytes, filename: str) -> FidelityR
     report = fidelity_report(load_run_store(base), load_run_results(base), lines)
     write_json(base / "output" / "fidelity.json", report.model_dump())
     return report
+
+
+def run_movement_fidelity(pid: str, run_id: str, data: bytes, *, max_gap_seconds: float) -> MovementReport:
+    return score_movement(_completed_run_base(pid, run_id), data, max_gap_seconds=max_gap_seconds)
+
+
+def get_movement_fidelity(pid: str, run_id: str) -> MovementReport | None:
+    return read_movement(_completed_run_base(pid, run_id))
 
 
 def export_customers_csv(pid: str, run_id: str) -> str:

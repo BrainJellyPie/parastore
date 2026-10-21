@@ -1,5 +1,285 @@
 # Changelog
 
+## 0.4.0 — TwinStore: the store's digital twin, from photos, in one click
+
+The project is now **TwinStore**, built on intellicia's open-source Parastore (MIT). User-facing
+text, the brand mark and the launcher use the new name; internal identifiers (`PARASTORE_*`
+variables, storage keys, the Python package, the `parastore` CLI) keep working.
+
+### Shopper journeys and interviews
+- Playback has a **Shoppers** tab: rank the run's shoppers (top spenders, left empty-handed, impulse
+  buys, longest visits) or search, open one, and see their trip step by step — wall-clock time,
+  shelf, product, impulse or planned, and the thought recorded at each step — with the walked path
+  and numbered stops on a floor map. **Follow in 3D** jumps playback to their arrival and highlights them.
+- Each first stop at a stocked shelf face shows **what the shopper saw** there (the vision shoppers'
+  renderer of that face at run time); click to enlarge. API: `GET .../runs/{run}/racks/{rack}/faces/{face}.png`.
+- **Interview**: ask that shopper why ("why didn't you buy anything at Snacks 1?"). A language model
+  answers in the first person from the persona, the trip and the shelves they stopped at only, says
+  so when they did not notice something, and cites the steps it means (hover to highlight them).
+  Suggested questions come from the trip. Transcripts are kept per run.
+- **Group interview**: one question to many shoppers at once — everyone who left empty-handed,
+  impulse buyers, top spenders, buyers or a random sample (4–40). Each answers from their own trip;
+  the answers are then coded into two to six themes, with counts computed from per-answer
+  assignments (misnumbered answers go to "Other"). Click an answer to open that shopper.
+  API: `POST/GET .../runs/{run}/group-interviews`, `DELETE .../group-interviews/{id}`.
+  API: `GET .../runs/{run}/shoppers/{id}/journey`, `GET/POST/DELETE .../shoppers/{id}/interview`.
+
+### Photo mode (path-traced stills)
+- In the first-person shopper view, **DoF** traces through a physical camera focused on whatever sits
+  at the centre of the frame (f/1.4, f/2.8, f/5.6), for a photographic depth of field.
+- In the realistic 3D view, **Photo** path-traces the current view with three-gpu-pathtracer:
+  global illumination, area-light shadows from the ceiling panels, a glossy floor, real glass and
+  daylight through the storefront. It refines sample by sample (64 / 256 / 1024) and saves a PNG;
+  orbiting or zooming restarts it. The live scene is copied into a static one the path tracer can
+  read: instanced packages baked with their label UVs, shader-patched materials replaced by plain PBR,
+  the contact-shadow decal dropped, the BVH built in a worker.
+
+### Marketing studio
+- **Field POS reconciliation**: preview anonymous transaction/SKU rows against saved field assignments, distinguish
+  positive evidence, conflicts and missing links, and send proposed purchases through the existing reviewed import.
+  Duplicate item rows and transactions shared by assignments are rejected within a file. No automatic nonpurchase
+  imputation, enrollment changes or overwriting of known outcomes; no model calls or raw POS persistence.
+- **Field collection checks**: default pilot monitoring view with staff/shift and A/B completeness denominators,
+  recording-gap checks, unrecorded-tail counts and a filtered, paginated follow-up checklist. JSON and CSV contain
+  outcome availability rather than purchase values. Imports and closure refresh the checklist; older and locked
+  pilots are supported. No significance tests or automatic outcome imputation.
+- **Observation import review and history**: full-sheet change previews, explicit reasons and confirmation,
+  file/revision-bound application, and retained before/after records with CSV export. Known-value clearing,
+  enrollment removal and purchase reversals are flagged. Unchanged sheets do not create revisions; older pilots
+  disclose missing historical coverage. API imports now require a preview token and reason.
+- **Field pilot sample planning**: conservative power bounds aligned with the final 95% Hoeffding interval,
+  required encounters and operating days, explicit capacity shortfalls, and optional even allocation across
+  existing staff/shift blocks. Assumptions and a server-calculated assessment are saved with each new plan;
+  existing pilots remain fixed. No model calls or real-sales forecasts.
+- **Observed field pilots**: fixed staff/shift A/B assignment sheets from saved scripts, full-sheet CSV imports,
+  immutable stimulus snapshots, intention-to-treat purchase counts, missingness bounds, versioned atomic updates,
+  and locked closure. Complete targets receive a conservative fixed-sample conversion interval; unfinished targets
+  stay descriptive. The independent Field pilots tab retains results after deletion of a source screening job.
+- **Field pilot sensitivity checks**: post-closure staff, shift and block deletion diagnostics with planned-count
+  weighting, exact-zero handling, unavailable comparisons and a revision-bound CSV export. Fully completed
+  fixed plans are required; no outcome imputation, interim testing or additional significance claims.
+- New **Market** page (`/marketing/<project>`) for marketers and research agencies, with five tabs.
+- **Staff scripts**: independent A/B exposures on the same synthetic personas, with purchase intent,
+  trust and pressure ratings, complete-pair bootstrap intervals, exploratory segments and customer replies.
+  Saved product/persona snapshots and exact-script CSV support review; missing responses, restart recovery
+  and conservative screening recommendations are explicit. API: `POST/GET /api/projects/{pid}/staff-pitches`,
+  `GET/DELETE .../{id}`, `.../{id}/export.csv`. This is wording screening, not a real sales-effect estimate.
+- **Products**: a product image library (multi-file drop, background cut-out, name, brand, linked shelf
+  SKU, rename, delete), shared with Shelf Lab. The vision shoppers' shelf renderer draws a linked
+  image instead of the plain package.
+- **A/B tests**: variants of a saved layout — price, discount with a was-price tag, promotion sign,
+  move to a fixture / shelf level, new pack, category price with .99 endings — plus one-click recipes.
+  All arms run on the same persona panel and seed (common random numbers); store and focus-product
+  outcomes come with paired bootstrap 95 % intervals, a winner only when the interval clears zero,
+  and CSV export. API: `POST/GET /api/projects/{pid}/experiments`, `GET/DELETE .../{eid}`.
+- **Price sweep**: a one-click recipe tests a product at −30 %, −15 %, +15 % and +30 % with the current
+  price kept as the shoppers' reference (`keep_reference`), and the result shows its demand curve —
+  units per 100 visitors with 95 % intervals at each price, product revenue, the elasticity across the
+  arms and the revenue-maximising tested price (in the app and the report). Rule shoppers react to
+  price relative to the usual price, so a new everyday price without a reference gets a note.
+- **Duplicate and edit**: open any finished A/B or concept test as a pre-filled new one.
+- **By segment**: every A/B variant also reports its paired difference to control within each age
+  group and gender (20+ shoppers) for revenue per visitor and tracked-product units, with 95 %
+  intervals, in the app and the report.
+- **Automatic report** for every finished A/B test: a summary with a rule-based recommendation
+  (roll out the winner with its daily and monthly revenue range, flag variants that lose, call out
+  product-only lifts, the panel size needed to see a 5 % change), the test design, results with
+  paired 95 % intervals and charts, tracked products, best sellers per arm, method and caveats.
+  One self-contained, print-ready HTML page (print to PDF) and Markdown; a model can add a labelled
+  commentary written from the report's numbers. API: `GET .../experiments/{eid}/report.html|.md`,
+  `POST/DELETE .../experiments/{eid}/narrative`.
+- **Shelf tests** (virtual shelf impact test): pick a shelf and a product, give it a new pack, price
+  or sign, and preview both shelves live. The same respondents see the control and the test shelf
+  through a vision model (badge numbers shuffled per respondent), pick the one product they would take
+  and name what caught their eye first. Results: the product's pick share, noticed in the top three
+  and noticed first, control vs test with paired 95 % intervals; what everyone took; why. API:
+  `POST/GET .../shelf-tests`, `POST .../shelf-tests/preview`, `GET/DELETE .../shelf-tests/{id}`,
+  `GET .../shelf-tests/{id}/{control|test}.png`; a print-ready report at `.../shelf-tests/{id}/report.html`.
+- **Concept tests**: personas (with age / gender quotas) answer purchase intent, appeal, value,
+  stand-out, Van Westendorp price and preference questions about up to four images through a vision
+  model; Likert summaries, Wilson shares, price-sensitivity curves, segments, verbatims, CSV export,
+  and a print-ready report (board, summary, answer distributions, price curves, segments, method).
+  API: `POST/GET /api/projects/{pid}/surveys`, `GET/DELETE .../{sid}`, `.../board.jpg`, `.../export.csv`.
+
+### One icon, every OS
+- `launcher/`: one Go source → `TwinStore.exe` (Windows, icon embedded, no console window),
+  `TwinStore.app` (macOS universal, app files inside the bundle) and `twinstore` (Linux, adds
+  itself to the app menu). Double-click → a live boot screen at `127.0.0.1:8000` → the app at the
+  same address. uv is fetched into the launcher's own folder when missing; a second click reopens
+  the running app; ⌘K → **Quit TwinStore** stops everything.
+- Release workflow builds one archive per OS and smoke-tests the packaged Linux launcher.
+
+### Works without an API key
+- With no cloud key set, a notice under the command bar says so, and the Models page shows what
+  this computer is (CPU, cores, memory, GPU) and which local vision model it gets.
+- `application/hardware.py` reads the hardware (NVIDIA via `nvidia-smi`, AMD/Intel via sysfs or
+  WMI, Apple silicon unified memory) and picks the largest model that runs at a usable speed:
+  - Qwen3.5-9B / 4B / 2B on a GPU (85 % of VRAM; 45 % of unified memory on a Mac);
+  - Qwen3.5-2B, 0.8B or LFM2.5-VL-450M on a CPU, by cores and free memory.
+- `application/local_vlm.py` downloads the matching llama.cpp build (CUDA for the driver's CUDA
+  version, Metal, Vulkan or CPU) and the model, starts `llama-server` on 127.0.0.1, falls back to
+  the CPU build if a GPU build does not start, and points the `llamacpp` provider at it.
+- Launched from an app icon, this starts on its own (`TWINSTORE_LOCAL_VLM_AUTO=1`); otherwise one
+  click on the notice or the Models page. `TWINSTORE_LOCAL_VLM=off`, `TWINSTORE_LLAMA_SERVER` and
+  `TWINSTORE_LOCAL_VLM_MODEL` override it. API: `GET /api/system/models`,
+  `POST /api/system/local-model/start|stop`.
+
+### Situations
+- Supermarkets, grocers and drugstores now use a **grocery profile** fitted to measured situation
+  effects (`engine/grocery_priors.json`, `priors_for(store.type)`); convenience stores keep the old priors.
+- Shoppers whose needs come from their history draw them scaled by the measured ratio of the
+  situation (`ScenarioPriors.need_ratio`): more beer and snacks on a match day, more water in summer.
+- **Time of day**: per-shopper part-of-day demand and needs by arrival hour
+  (`ScenarioPriors.hour_demand`, `need_ratio["hour:evening"]`); no scenario needed.
+- The scenario layer no longer files frozen pizza, cream cheese and candy bars under ice cream.
+
+### Shopper behaviour
+- Time at the shelf is lognormal (`RuleBasedConfig.shelf_time_median_sec`), on its own random stream so baskets do not
+  change; a pick right after a look is no longer floored again by the rack minimum, and new racks
+  start at a 2 s minimum.
+- Each needed category names the household's usual products there, which raises repeat purchases.
+
+### Shelf Lab — real photos as experiments
+- Budgeted restocking quantities: verified stockroom counts, whole supplier packs, explicit priority,
+  pack availability and a single delivery fee. The audit-linked API, worksheet UI and CSV export show
+  unfilled demand, surplus, costs and constraints without placing orders or estimating sales recovery.
+- Counterfactual edits on shelf photos (swap, stock-out, new package, price tag, promotion) with
+  exact ground-truth masks: pixels outside the changed boxes are untouched.
+- Sim2real: the same personas and seeds on the render, the tagged photo and the raw photo;
+  decision agreement with confidence intervals, attention by shelf level, interest rank agreement.
+- Compliance audit against the layout's reference face; stock-outs priced in revenue per day by
+  paired simulation. Benchmark generator (`lab_cli bench`) and lever experiments.
+- Rival shelf comparison: price index, assortment overlap, the rival's price-adjusted pull.
+- Photoreal shelf studio (`frontend/studio.html`): a gondola bay rendered with Realistic mode's
+  packages and a phone-photo finish, with exact facing boxes, so Shelf Lab can be shown and
+  benchmarked on photo-like shelves. Edits now match light by the bright end of the surrounding ring
+  (shelf edges, tags), so neighbouring products no longer tint swapped or refilled pixels.
+
+### Photos in, twin out
+- Floor-plan images (sketch, scan, PDF page) → walls, racks and doors on the grid, or read by a
+  vision model.
+- Storefront photos → appeal score → the venue's pull in the neighborhood model.
+- Receipt photos → POS lines matched to the store's products → fidelity report.
+
+### A new interface
+- Aurora design system (Geist, Instrument Serif), command bar and ⌘K palette, redesigned home,
+  workspace, wizard, neighborhood, capture and settings pages; photoreal 3D by default with a
+  store environment map and lens effects; the playback bar folds away in the shopper's-eye view.
+
+### Docs
+- README rewritten around the twin, with system, vision-shopper, Shelf Lab, validation and
+  launcher figures and a short film, all generated from HTML in `.github/assets/src`.
+- License: TwinStore License 1.0 — free for research and non-commercial use, free for
+  organizations with annual revenue up to US$1M, a separate license otherwise. The Parastore MIT
+  notice is kept in full.
+
+## 0.3.0 — vision shoppers in a living neighborhood
+
+v0.2 made the simulator an experiment tool. v0.3 widens what can be simulated and
+who decides: vision-language shoppers now make every in-store decision (whether
+to go in, what they came for, what catches their eye), on any model you connect
+or an ensemble of them, in a store you can generate from ten retail formats, on a
+day you describe, in a neighborhood you generate or import — and the same
+shoppers judge layout optimizations and the value of the shop next door.
+
+### Vision shoppers decide end to end
+- **Planning at the door** (`plan_policy="vlm"`, default for vision runs): the
+  shopper sees a rendered store directory map, reads today's situation and where
+  it came from, and decides whether to enter and what to buy; items resolve to
+  SKUs by name, then category. Scenario demand multipliers are not applied on
+  top (no double counting); arrivals and budgets still come from the scenario.
+- **Impulse picks at the shelves** as before (rendered faces, interest 0–10,
+  seeded purchase draw), now with the plan in the shopper's basket context.
+- **Models**: OpenAI, Anthropic, Google Gemini, Alibaba Cloud Qwen (Model
+  Studio), OpenRouter, vLLM, Ollama, llama.cpp and any OpenAI-compatible
+  endpoint; keys entered in Settings are stored only on the machine running the
+  backend. Connection tests for text and vision.
+- **Ensembles** of models as one population: *mixture* (each shopper is one
+  model, weighted) or *vote* (every model looks at each shelf, majority wins).
+
+### Situations
+19 presets (heatwave weekend, typhoon, fine dust, payday Friday, exam week,
+local festival, competitor opening, 1+1 drinks, supply disruption, lunch rush, …)
+and an editor for weather, season, day type, events, promotions, stock-outs,
+crowding and hourly traffic. Vision shoppers read the situation; the rule model
+applies it as calibrated multipliers.
+
+### Neighborhoods
+Procedural towns (residential, university, business district, station area,
+suburban, tourist, mixed) or a real OpenStreetMap area: homes, offices, schools,
+stations, rival stores and other venues. Huff-style demand gives visitors per
+hour, catchment and walking distance; runs can draw their visitors from the
+town, each shopper knowing where it came from. Synergy: the numeric effect of
+every venue on our visitors, plus a **vision check** that simulates the affected
+visitors with and without the venue to measure the basket effect.
+
+### Layout optimization
+Hill climbing, simulated annealing or a genetic search over planograms and rack
+positions, scored on a fixed shopper panel with common random numbers and
+re-checked on fresh shoppers. **Vision judge**: the rule model proposes, VLM
+shoppers walk the top candidates on one paired panel and pick the winner, after
+an optional calibration of the rule model to a VLM pilot; the report shows rule
+vs vision ranks, paired deltas with intervals and P(better). Jobs can be stopped.
+
+### Stores and graphics
+- Ten store formats generated as complete layouts with priced products (urban
+  and compact convenience stores, campus store, station kiosk, gas station,
+  drugstore, mini-mart, café-bakery, office lobby, tourist shop), in English/$ or
+  Korean/₩, parallel aisles or racetrack loop.
+- **Realistic 3D mode**: gondolas with price channels, glass-door coolers, chest
+  freezers, counter with POS, glass storefront, instanced products with
+  generated packaging and labels, soft shadows, optional GTAO/bloom/reflections.
+- **Shopper view**: an eye-height camera that follows one shopper.
+
+### Interface
+A new interface with day and night themes, a navigation rail, a home screen with
+an animated store, glass controls over the 3D view, and larger type throughout.
+
+### Calibrated against real purchases
+What a comparison with real trips exposed was fixed in the simulator:
+- **Visit times from data**: a weekday × hour traffic profile fitted from
+  transaction times (`engine/generators/traffic_profile.py`). A POS export with a
+  timestamp column uploaded as supplemental data now sets when personas arrive;
+  asked directly, models put most visits on a few stereotyped hours.
+- **Supermarket-sized trips**: store-kind-aware prompts, plans of up to 30 items,
+  `basket_scale`, products per category, multi-unit purchases, priority-ordered
+  shopping lists, and `Persona.basket_size` (a trip of known size) honored by
+  both planners.
+- **Long plans no longer fall back silently**: plan token budgets scale with the
+  list length, with one retry on a cut-off answer.
+- **Model Studio regions**: `DASHSCOPE_API_BASE` (or Settings) selects the
+  region or workspace endpoint; Qwen's reasoning mode is switched off for shopper
+  decisions.
+- **Walking**: 1.04 s per tile, diagonal steps without corner cutting, per-shopper pace
+  (lognormal, sd 0.3); time runs in fractional seconds.
+- **Prices shoppers can react to**: `SlotItem.regular_price` (a sale shows as
+  "$2.39 (was $2.99)" on the shelf tag), every product's price in the vision
+  planner's store directory (`directory_prices`), and a constant-elasticity
+  price factor in the rule planner (`price_elasticity`, default −1.8). Before,
+  neither engine responded to a 20 % price change.
+- **Trips that vary like real ones**: `Persona.category_rates` (share of past
+  trips with each category; on each trip a seeded draw decides which of them the
+  household has run out of, and the vision planner is told) and
+  `Persona.basket_kinds` (categories on the same past receipt; the planner keeps
+  the model's first K categories and fills the trip within them). Asked for one
+  trip, models otherwise bought every staple every time and spread six items over
+  six categories.
+- **Product choice**: the store directory lists every product of a category in a
+  random order per shopper; `Persona.usual_products` and `habit_prob` for repeat
+  purchases, shown to vision planners and used by the rule planner.
+- **Newer OpenAI models** (GPT-6): `max_tokens` is renamed to
+  `max_completion_tokens` and unsupported sampling values are dropped, learned
+  from the provider's error and retried. Reasoning is switched off for shopper
+  decisions (`reasoning_effort: none`): with it on, reasoning tokens used up the
+  glance budget and 90 % of GPT-6 Luna's shelf glances failed. A cut-off glance
+  is retried once with twice the budget, and validation runs report glance
+  errors next to plan fallbacks.
+
+### Getting started
+Double-click `Parastore-Windows.bat`, `Parastore-macOS.command` or
+`Parastore-Linux.sh`: the launcher installs what it needs, builds the interface
+once and opens the app in the browser (see QUICKSTART.md).
+
 ## 0.2.0 — what changed and why
 
 v0.1 produced plausible-looking shopper animations, but its numbers could not

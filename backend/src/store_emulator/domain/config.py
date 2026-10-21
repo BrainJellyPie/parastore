@@ -1,9 +1,11 @@
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
+from .providers import EnsembleConfig
 from .rack import RackType
+from .scenario import Scenario, ScenarioPriors
 
 
 class EngineType(StrEnum):
@@ -34,6 +36,9 @@ type StructuredOutput = Literal["json", "json_schema"]
 # - all: the VLM sees every one of the max_glances most visible faces and decides alone.
 type GlancePolicy = Literal["gated", "all"]
 
+# Who plans the visit of a vision shopper (see VLMGlanceConfig.plan_policy).
+type PlanPolicy = Literal["vlm", "rule"]
+
 
 class LLMConfig(BaseModel):
     model: str = "gemini/gemini-3.1-pro-preview"
@@ -47,6 +52,9 @@ class LLMConfig(BaseModel):
     # Directory for the content-addressed response cache. None disables caching.
     cache_dir: str | None = None
     structured_output: StructuredOutput = "json"
+    # Resolved from provider settings / environment at run time. Excluded from every dump, so it
+    # is never written to run configs, manifests or API responses.
+    api_key: SecretStr | None = Field(default=None, exclude=True, repr=False)
 
 
 class DwellRange(BaseModel):
@@ -84,7 +92,30 @@ class RuleBasedConfig(BaseModel):
     promo_multiplier: float = Field(default=1.8, ge=0.0)
     walkout_prob: float = Field(default=0.04, ge=0.0, le=1.0)    # leaves without buying (no-purchase patterns)
     max_impulse_items: int = Field(default=3, ge=0)
+    # Mean products bought per planned category (≥ 1; extra products follow a geometric draw) and the
+    # chance a bought line is two or more units. Defaults keep the original one-unit, one-product rule.
+    items_per_category: float = Field(default=1.0, ge=1.0, le=6.0)
+    multi_unit_prob: float = Field(default=0.0, ge=0.0, le=0.9)
+    # planned_hit_prob × decay^k for the k-th preferred category (0-based): a shopping list is written
+    # in priority order and its tail is often skipped. 1.0 = every entry equally likely (original rule).
+    plan_position_decay: float = Field(default=1.0, gt=0.0, le=1.0)
+    # Chance that, in a category holding one of the persona's usual products, the planner takes a usual
+    # product instead of drawing by shelf attention. Calibrated on The Complete Journey:
+    # 0.9 brings the repeat share of a trip's products to 0.59 (real 0.66; 0.12 without usual products).
+    habit_prob: float = Field(default=0.9, ge=0.0, le=1.0)
+    # Response to a product's price against its regular price (SlotItem.regular_price): choice weights and
+    # impulse odds are multiplied by (price / regular) ** price_elasticity. Real own-price elasticity of
+    # grocery items is about −0.7 at item level (M5 food sales, Walmart) and −1.8 to −2.6 at brand level
+    # (meta-analyses); −1.8 here gives a measured own-price elasticity of −0.78 when half a store's
+    # products move ±20 %.
+    price_elasticity: float = Field(default=-1.8, ge=-5.0, le=0.0)
     browse_before_buy_prob: float = Field(default=0.6, ge=0.0, le=1.0)
+    # Time at the shelf when the shopper looks before taking a product (look + pick, seconds): lognormal
+    # with this median and log-sd. Fitted to 88 unplanned purchases filmed with mobile eye trackers in a
+    # supermarket (median 8.2 s, quartiles 4.5–15 s). 0 keeps
+    # the original uniform 3–12 s look + 2–5 s pick.
+    shelf_time_median_sec: float = Field(default=8.2, ge=0.0, le=120.0)
+    shelf_time_log_sd: float = Field(default=0.75, ge=0.0, le=2.0)
     # Unplanned stops that end without a purchase, per impulse buy (noticed, looked, walked on).
     browse_only_ratio: float = Field(default=1.0, ge=0.0)
     pattern_weights: dict[str, float] = {
@@ -95,7 +126,8 @@ class RuleBasedConfig(BaseModel):
 
 
 class VLMGlanceConfig(BaseModel):
-    """Vision-language shopper: rule-based planning, impulse decisions from rendered shelf images.
+    """Vision-language shopper: the VLM plans the visit at the entrance (plan_policy "vlm") and makes
+    the impulse decisions from rendered shelf images; route style and caps stay rule-based.
 
     The default endpoint is a local llama.cpp server (OpenAI-compatible) running a small VLM
     on CPU, e.g. `llama-server -m Qwen3.5-0.8B-Q4_K_M.gguf --mmproj mmproj-...gguf --port 8081`.
@@ -122,6 +154,23 @@ class VLMGlanceConfig(BaseModel):
     # strong top-row preference small VLMs show on shelf images.
     buy_scale: float = Field(default=0.5, ge=0.0, le=1.0)
     weight_by_level: bool = True
+    # Who decides what the shopper came for (and whether they go in at all).
+    # - vlm: one call at the entrance with persona, time, situation, budget and the store directory
+    #   (plus the directory map image when entrance_image); the scenario's numeric demand and walk-out
+    #   multipliers are then not applied to the plan — the model read the situation itself.
+    # - rule: the rule-based planner (preferred categories × scenario demand multipliers).
+    plan_policy: PlanPolicy = "vlm"
+    # 3 suits a convenience-store visit; supermarket trips need more (calibrate from POS lines per trip).
+    max_plan_items: int = Field(default=3, ge=0, le=30)
+    entrance_image: bool = True
+    # Products named per category in the text directory, and whether each shopper sees its own random
+    # draw of them (in random order) rather than the same top-of-shelf list. Validated on real baskets:
+    # with 3 fixed examples 87 % of planned products were those three (54 %
+    # real); with 8 in random order the product-choice JSD against real sales ranks fell 0.11 → 0.02.
+    directory_examples: int = Field(default=8, ge=1, le=50)
+    directory_shuffle: bool = True
+    directory_prices: bool = True   # each product's own price in the directory (else the category's range)
+    plan_max_tokens: int = Field(default=320, ge=64, le=4096)  # plans are longer than glance answers
 
 
 class EngineConfigs(BaseModel):
@@ -131,7 +180,14 @@ class EngineConfigs(BaseModel):
 
 
 class SimulationConfig(BaseModel):
-    block_move_sec: int = 1
+    # Seconds to walk one tile. Movement validated on 13,159 pedestrian tracks from a shopping center
+    # (ATC pedestrian tracks): with a tile of 1.25 m, 1.04 s/tile gives a median per-shopper walking
+    # speed of 1.12 m/s against 1.13 m/s real (1.0 s/tile: 1.25 m/s). Diagonal steps take the straight
+    # line instead of a staircase (detour index 1.27 → 1.19; real 1.06 in open corridors), and pace
+    # varies between shoppers (sd of log pace 0.3; real p90 1.46 m/s, simulated 1.53).
+    block_move_sec: float = Field(default=1.04, gt=0.0, le=10.0)
+    diagonal_moves: bool = True
+    walk_pace_sd: float = Field(default=0.3, ge=0.0, le=1.0)   # sd of log pace across shoppers; 0 = everyone alike
     max_grid_size: int = 30
     dwell: dict[RackType, DwellRange] = dict(_DWELL_DEFAULTS)
     engine_type: EngineType = EngineType.PATTERN_INTENT_IMPULSE
@@ -145,10 +201,21 @@ class SimulationConfig(BaseModel):
     route_ordering: RouteOrdering = "planned"
     perception: PerceptionConfig = PerceptionConfig()
     # Impulse buys are dropped (latest first) once spend exceeds budget_max × tolerance. None disables.
-    budget_tolerance: float | None = 1.5
+    budget_tolerance: float | None = Field(default=1.5, ge=0, allow_inf_nan=False)
+    # Scales every behavior pattern's product cap (max_products). The presets are sized for convenience
+    # stores; supermarket trips are larger. Calibrated from POS lines per trip (see engine.calibration).
+    basket_scale: float = Field(default=1.0, ge=0.1, le=10.0)
     max_quantity_per_line: int = Field(default=6, ge=1)
     # ISO 4217 code. Prices and budgets are integers in the currency's minor unit (USD → cents, KRW → won).
     currency: str = "USD"
+    # Several models as one consumer population for the run's LLM/VLM engine (None = single model).
+    ensemble: EnsembleConfig | None = None
+    # Situation of the simulated day(s): weather, events, promotions, stock-outs, crowding …
+    scenario: Scenario | None = None
+    # Effect sizes of situations (weather, calendar, events, promotions). None: chosen by the store's
+    # type — grocery formats use the profile fitted to real data (engine/scenario.py GROCERY_PRIORS),
+    # the others the convenience-store priors.
+    scenario_priors: ScenarioPriors | None = None
 
     def dwell_for(self, rack_type: RackType) -> DwellRange:
         return self.dwell.get(rack_type, DwellRange(min=5, max=30))

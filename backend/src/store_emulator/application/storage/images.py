@@ -5,18 +5,25 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import re
+import shutil
 import threading
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from PIL import Image, UnidentifiedImageError
 
-from .io import DATA_DIR, read_json, write_json
+from store_emulator.domain.types import RESOURCE_ID_PATTERN
 
+from .io import DATA_DIR, read_json, write_json
+from .setups import metadata_path
+
+
+logger = logging.getLogger(__name__)
 
 MAX_IMAGE_BYTES: Final[int] = 2 * 1024 * 1024  # 2MB
 _ALLOWED_FORMATS: Final[dict[str, tuple[str, str]]] = {
@@ -25,7 +32,7 @@ _ALLOWED_FORMATS: Final[dict[str, tuple[str, str]]] = {
     "JPEG": ("image/jpeg", "jpg"),
     "WEBP": ("image/webp", "webp"),
 }
-_SAFE_PID: Final[re.Pattern[str]] = re.compile(r"[a-z0-9_]+")
+_SAFE_PID: Final[re.Pattern[str]] = re.compile(RESOURCE_ID_PATTERN)
 
 # Per-project lock that serializes manifest writes. Assumes a single process
 # (single uvicorn worker). Prevents lost-update on concurrent save_image calls
@@ -67,9 +74,7 @@ class ImageEntry:
 def _project_dir(project_id: str) -> Path:
     if not _SAFE_PID.fullmatch(project_id):
         raise ValueError(f"unsafe project_id: {project_id}")
-    d = Path(DATA_DIR) / "images" / project_id
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+    return Path(DATA_DIR) / "images" / project_id
 
 
 def _manifest_path(project_id: str) -> Path:
@@ -80,25 +85,33 @@ def _sku_hash(sku: str) -> str:
     return hashlib.sha256(sku.encode("utf-8")).hexdigest()[:16]
 
 
-def load_manifest(project_id: str) -> dict[str, dict[str, str]]:
+def load_manifest(project_id: str, *, strict: bool = False) -> dict[str, dict[str, str]]:
     p = _manifest_path(project_id)
     if not p.exists():
         return {}
     # read_json -> Any (JSON parsing boundary); coerce defensively.
     try:
         data = read_json(p)  # type: ignore[reportAny]
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        if strict:
+            raise ImageStorageError("Stored image metadata is invalid; repair it before uploading photos.") from e
         return {}
     if not isinstance(data, dict):
+        if strict:
+            raise ImageStorageError("Stored image metadata must be an object; repair it before uploading photos.")
         return {}
     result: dict[str, dict[str, str]] = {}
     for k, v in data.items():  # type: ignore[reportUnknownVariableType]
         if not isinstance(k, str) or not isinstance(v, dict):
+            if strict:
+                raise ImageStorageError("Stored image metadata contains an invalid entry; repair it before uploading photos.")
             continue
         entry: dict[str, str] = {}
         for ek, ev in v.items():  # type: ignore[reportUnknownVariableType]
             if isinstance(ek, str) and isinstance(ev, str):
                 entry[ek] = ev
+            elif strict:
+                raise ImageStorageError("Stored image metadata contains an invalid field; repair it before uploading photos.")
         result[k] = entry
     return result
 
@@ -120,33 +133,76 @@ def save_image(
     try:
         with Image.open(io.BytesIO(data)) as img:
             fmt = (img.format or "").upper()
-    except (UnidentifiedImageError, OSError) as e:
+            if fmt not in _ALLOWED_FORMATS:
+                raise UnsupportedImageFormatError(
+                    f"unsupported image format ({fmt}): {filename}",
+                )
+            img.load()
+    except Image.DecompressionBombError as e:
+        raise ImageTooLargeError("Image dimensions are too large; reduce the resolution and try again.") from e
+    except (UnidentifiedImageError, OSError, ValueError) as e:
         raise UnsupportedImageFormatError(f"failed to identify image format: {filename}") from e
-    if fmt not in _ALLOWED_FORMATS:
-        raise UnsupportedImageFormatError(
-            f"unsupported image format ({fmt}): {filename}",
-        )
     mime, ext = _ALLOWED_FORMATS[fmt]
 
     # Serializes manifest read/modify/write within a project and avoids
     # tmp-file collisions for the same SKU.
     with _project_lock(project_id):
         pdir = _project_dir(project_id)
+        if not metadata_path(project_id).is_file():
+            raise FileNotFoundError(f"Project not found: {project_id}")
+        manifest = load_manifest(project_id, strict=True)
+        pdir.mkdir(parents=True, exist_ok=True)
         fname = f"{_sku_hash(sku)}.{ext}"
         target = pdir / fname
         tmp = target.with_suffix(target.suffix + f".tmp-{uuid.uuid4().hex[:8]}")
-        tmp.write_bytes(data)
-        tmp.replace(target)
-
+        backup = target.with_suffix(target.suffix + f".backup-{uuid.uuid4().hex[:8]}")
+        had_original = target.exists()
+        backup_ready = False
+        committed = False
         version = hashlib.sha256(data).hexdigest()[:8]
-        manifest = load_manifest(project_id)
-        manifest[sku] = {"path": str(target), "mime": mime, "ext": ext, "version": version}
-        _save_manifest(project_id, manifest)
+        try:
+            if had_original:
+                shutil.copyfile(target, backup, follow_symlinks=False)
+                backup_ready = True
+            tmp.write_bytes(data)
+            tmp.replace(target)
+
+            manifest[sku] = {"path": str(target), "mime": mime, "ext": ext, "version": version}
+            _save_manifest(project_id, manifest)
+            committed = True
+        except OSError:
+            if backup_ready:
+                backup.replace(target)
+                backup_ready = False
+            elif not had_original:
+                target.unlink(missing_ok=True)
+            raise
+        finally:
+            cleanup = [tmp]
+            # Keep the backup available for recovery if restoring it also failed.
+            if committed or not backup_ready:
+                cleanup.append(backup)
+            for path in cleanup:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    logger.warning("Could not remove temporary image file %s", path, exc_info=True)
 
     return ImageEntry(sku=sku, path=str(target), mime=mime, ext=ext, version=version)
 
 
+def delete_project_images(project_id: str) -> None:
+    """Finish any in-flight upload before removing a deleted project's photos."""
+    with _project_lock(project_id):
+        pdir = _project_dir(project_id)
+        if pdir.exists():
+            shutil.rmtree(pdir)
+
+
 def resolve_image(project_id: str, sku: str) -> tuple[Path, str] | None:
+    pdir = _project_dir(project_id).resolve()
+    if not metadata_path(project_id).is_file():
+        return None
     manifest = load_manifest(project_id)
     entry = manifest.get(sku)
     if entry is None:
@@ -156,7 +212,6 @@ def resolve_image(project_id: str, sku: str) -> tuple[Path, str] | None:
     if not isinstance(path_str, str) or not isinstance(mime, str):
         return None
     p = Path(path_str).resolve()
-    pdir = _project_dir(project_id).resolve()
     try:
         p.relative_to(pdir)
     except ValueError:
@@ -177,6 +232,7 @@ def image_url_for(
     if entry is None:
         return None
     version = entry.get("version", "")
-    suffix = f"?v={version}" if version else ""
-    encoded_sku = quote(sku, safe="")
-    return f"/api/projects/{project_id}/images/{encoded_sku}{suffix}"
+    query = {"sku": sku}
+    if version:
+        query["v"] = version
+    return f"/api/projects/{project_id}/images?{urlencode(query)}"

@@ -8,7 +8,8 @@
 //   which is what makes the A/B compare view statistically sharp.
 
 import { useState, type FormEvent } from "react";
-import { Bot, Eye, FlaskConical, Zap } from "lucide-react";
+import { Bot, Eye, FlaskConical, Map as MapIcon, Zap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -22,10 +23,14 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { useSimulate } from "@/shared/mutations/useSimulate";
-import type { EngineType, RunOptions } from "@/shared/api/client";
+import * as api from "@/shared/api/client";
+import { queryKeys } from "@/shared/queries/keys";
+import type { EngineType, RunOptions, Scenario } from "@/shared/api/client";
 import { cn } from "@/shared/utils/cn";
 
 import { useEngines } from "../hooks";
+import { ModelPicker, type ModelChoice } from "./ModelPicker";
+import { ScenarioEditor } from "./ScenarioEditor";
 
 export interface RunLauncherDialogProps {
   open: boolean;
@@ -41,7 +46,7 @@ export interface RunLauncherDialogProps {
 export function RunLauncherDialog(props: RunLauncherDialogProps) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-[520px]">
         {/* Content unmounts when closed, so the form state resets on every open. */}
         <LauncherForm {...props} />
       </DialogContent>
@@ -71,6 +76,12 @@ function LauncherForm({
   const [seed, setSeed] = useState(0);
   const [replicate, setReplicate] = useState(0);
   const [preview, setPreview] = useState(true);
+  const [modelChoice, setModelChoice] = useState<ModelChoice>({ kind: "default" });
+  const [scenario, setScenario] = useState<Scenario | null>(null);
+  const town = useQuery({ queryKey: queryKeys.town(projectId), queryFn: ({ signal }) => api.getTown(projectId, signal) }).data;
+  const [useTown, setUseTown] = useState(false);
+  const [townScale, setTownScale] = useState(0.2);
+  const [planPolicy, setPlanPolicy] = useState<"vlm" | "rule">("vlm");
 
   const isPreview = locked || preview;
   const customers = sampleMode === "all" ? personaCount : Math.max(1, Math.min(sampleSize, personaCount));
@@ -93,6 +104,13 @@ function LauncherForm({
       replicate,
       preview: isPreview,
       max_customers: sampleMode === "sample" ? customers : undefined,
+      model: modelChoice.kind === "single" ? modelChoice.model : undefined,
+      ensemble:
+        modelChoice.kind === "ensemble" && (modelChoice.ensemble?.members.length ?? 0) > 0 ? modelChoice.ensemble : undefined,
+      scenario: scenario ?? undefined,
+      use_town: town && useTown ? true : undefined,
+      town_scale: town && useTown ? townScale : undefined,
+      plan_policy: engine === "vlm_glance" ? planPolicy : undefined,
     };
     simulate.mutate({ projectId, setupId, options }, { onSuccess: () => onOpenChange(false) });
   };
@@ -159,6 +177,55 @@ function LauncherForm({
           </label>
         ))}
       </RadioGroup>
+
+      <ScenarioEditor value={scenario} onChange={setScenario} />
+
+      {town && (
+        <div className="space-y-1.5 rounded-md border p-3 text-xs">
+          <label className="flex items-center gap-2 text-sm font-medium" htmlFor="use-town">
+            <input id="use-town" type="checkbox" className="size-4 accent-primary" checked={useTown} onChange={(e) => setUseTown(e.target.checked)} />
+            <MapIcon className="size-4" aria-hidden /> Visitors from the neighborhood
+          </label>
+          <p className="text-muted-foreground">
+            Who comes, when and from how far is predicted from {town.name}: homes, offices, schools, rival stores and
+            linked trips from nearby venues. Shoppers know where they came from.
+          </p>
+          {useTown && (
+            <label className="flex items-center gap-2">
+              <span className="text-muted-foreground">Simulate</span>
+              <input type="range" min={0.05} max={1} step={0.05} value={townScale} onChange={(e) => setTownScale(Number(e.target.value))} className="flex-1 accent-primary" />
+              <span className="w-28 text-right tabular-nums">{Math.round(townScale * 100)} % of a full week</span>
+            </label>
+          )}
+        </div>
+      )}
+
+      {engine === "vlm_glance" && (
+        <div className="space-y-1.5 rounded-md border p-3 text-xs">
+          <div className="text-sm font-medium">What the vision shoppers decide</div>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: "vlm", title: "Everything", hint: "At the door each shopper sees the store map, today's situation and where they came from, and decides whether to go in and what to buy; then picks impulse items off the shelves." },
+              { id: "rule", title: "Shelf glances only", hint: "Shopping lists come from the rule model (faster); the VLM only judges impulse picks at the shelves." },
+            ] as const).map((o) => (
+              <button key={o.id} type="button" onClick={() => setPlanPolicy(o.id)}
+                className={cn("rounded-lg border p-2 text-left", planPolicy === o.id ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>
+                <div className="font-medium">{o.title}</div>
+                <div className="text-muted-foreground">{o.hint}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {usesLlm && (
+        <ModelPicker
+          engine={engine}
+          defaultModel={modelOf(engine)}
+          value={modelChoice}
+          onChange={setModelChoice}
+        />
+      )}
 
       <div className="space-y-2">
         <div className="text-sm font-medium">Customers</div>

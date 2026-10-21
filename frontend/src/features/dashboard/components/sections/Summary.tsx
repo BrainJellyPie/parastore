@@ -12,20 +12,20 @@ export function Summary() {
   const impulseShare = revenue > 0 ? impulseRevenue / revenue : 0;
 
   return (
-    <div className="border-t px-3 py-3">
-      <div className="mb-2 text-xs font-medium">Summary</div>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <div className="text-[11px] text-muted-foreground">Total revenue</div>
-          <div className="mt-0.5 text-lg font-bold tabular-nums">{formatMoney(revenue, currency)}</div>
+    <div className="px-3 py-3">
+      <div className="ring-aurora relative overflow-hidden rounded-2xl bg-foreground/[0.03] p-4">
+        <div className="pointer-events-none absolute -top-10 -right-8 size-32 rounded-full bg-heat-2/20 blur-2xl" aria-hidden />
+        <div className="eyebrow">Revenue so far</div>
+        <div className="num mt-1 text-[2.4rem] leading-none font-medium tracking-[-0.06em]">{formatMoney(revenue, currency)}</div>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-glass-border bg-foreground/[0.02] p-3">
+          <div className="eyebrow">Avg. basket</div>
+          <div className="num mt-1 text-xl font-medium tracking-[-0.04em]">{formatMoney(aov, currency)}</div>
         </div>
-        <div>
-          <div className="text-[11px] text-muted-foreground">Avg. order value</div>
-          <div className="mt-0.5 text-lg font-bold tabular-nums">{formatMoney(aov, currency)}</div>
-        </div>
-        <div>
-          <div className="text-[11px] text-muted-foreground" title="Revenue from unplanned purchases">Impulse share</div>
-          <div className="mt-0.5 text-lg font-bold tabular-nums">{formatPercent(impulseShare, 0)}</div>
+        <div className="rounded-2xl border border-glass-border bg-foreground/[0.02] p-3" title="Revenue from unplanned purchases">
+          <div className="eyebrow">Impulse share</div>
+          <div className="num mt-1 text-xl font-medium tracking-[-0.04em]">{formatPercent(impulseShare, 0)}</div>
         </div>
       </div>
     </div>

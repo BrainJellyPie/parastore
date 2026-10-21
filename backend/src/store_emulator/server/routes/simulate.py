@@ -1,16 +1,24 @@
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 
 from store_emulator.application import simulation as sim_service
 from store_emulator.application.async_executor import executor
 from store_emulator.application.errors import AppError
+from store_emulator.application.movement import MAX_TRACK_BYTES
+from store_emulator.application.providers import ensure_resolvable
 from store_emulator.application.simulation import RunOptions
 from store_emulator.domain.analysis import ComparisonReport, FidelityReport
-from store_emulator.domain.config import EngineType, ExposureModel, RouteOrdering
+from store_emulator.domain.config import EngineType, ExposureModel, PlanPolicy, RouteOrdering
+from store_emulator.domain.movement import MovementReport
 from store_emulator.domain.persona import Persona
+from store_emulator.domain.providers import EnsembleConfig
+from store_emulator.domain.scenario import Scenario
+from store_emulator.domain.store import Store
+from store_emulator.domain.types import RESOURCE_ID_PATTERN, ResourceId
 from store_emulator.server.schemas import EngineInfo, SimulationStartResponse
 from ..deps import get_config
 
@@ -22,8 +30,8 @@ class SimulateRequest(BaseModel):
     """Simulation run request. Executed against the server-stored setup.
 
     Every option is optional and overrides the server configuration for this run only."""
-    setup_id: str = Field(description="Setup ID")
-    run_id: str | None = Field(default=None, description="run ID (auto-generated if omitted)")
+    setup_id: ResourceId = Field(description="Setup ID")
+    run_id: ResourceId | None = Field(default=None, description="run ID (auto-generated if omitted)")
     engine_type: EngineType | None = Field(default=None, description="`pattern_intent_impulse` (LLM) or `rule_based` (instant, no LLM cost)")
     seed: int | None = Field(default=None, description="Run seed. Equal seeds across layouts give paired (common-random-number) comparisons")
     replicate: int | None = Field(default=None, ge=0, description="Replicate index for repeated runs of the same layout")
@@ -31,6 +39,16 @@ class SimulateRequest(BaseModel):
     route_ordering: RouteOrdering | None = Field(default=None, description="`planned` (default) or legacy `nearest`")
     max_customers: int | None = Field(default=None, ge=1, description="Deterministic persona subsample for cheap pilots")
     preview: bool = Field(default=False, description="Preview runs don't lock the setup and are allowed on draft or finalized setups")
+    model: str | None = Field(default=None, description='Model reference for the engine, e.g. "openai:gpt-6-luna", "qwen:qwen3.7-plus"')
+    ensemble: EnsembleConfig | None = Field(default=None, description="Several models as one consumer population (mixture or vote)")
+    scenario_id: str | None = Field(default=None, description='Scenario preset id (GET /api/scenarios), e.g. "heatwave_weekend"')
+    scenario: Scenario | None = Field(default=None, description="Custom scenario (overrides scenario_id)")
+    use_town: bool = Field(default=False, description="Draw visitors from the project's neighborhood model")
+    town_scale: float = Field(default=1.0, gt=0.0, le=5.0, description="Share of the predicted daily visitors to simulate")
+    plan_policy: PlanPolicy | None = Field(
+        default=None,
+        description='Vision shoppers only: "vlm" (the model plans the visit at the entrance) or "rule" (rule planner)',
+    )
 
 
 @engines_router.get("/engines", summary="Available simulation engines", response_model=list[EngineInfo])
@@ -52,8 +70,9 @@ async def list_engines() -> list[EngineInfo]:
         ),
         EngineInfo(
             engine_type=EngineType.VLM_GLANCE.value, label="Vision shoppers",
-            description="Rule-based planning; impulse picks made by a vision-language model looking at rendered "
-                        "shelves. Runs on a local CPU model — use a small customer sample.",
+            description="A vision-language model plans each visit at the entrance (store directory map, "
+                        "situation, budget) and makes the impulse picks looking at rendered shelves. Runs on a "
+                        "local CPU model — use a small customer sample.",
             uses_llm=True, model=vlm.model, default=config.engine_type == EngineType.VLM_GLANCE,
         ),
     ]
@@ -89,19 +108,25 @@ async def start_simulation(pid: str, req: SimulateRequest) -> SimulationStartRes
     **On failure:** the setup reverts to `draft`.
 
     **Errors:** 400 (no layout / no personas), 404 (setup not found), 409 (locked / running / readiness not met / duplicate run_id)"""
+    options = RunOptions(
+        engine_type=req.engine_type, seed=req.seed, replicate=req.replicate,
+        exposure_model=req.exposure_model, route_ordering=req.route_ordering,
+        max_customers=req.max_customers, preview=req.preview, model=req.model, ensemble=req.ensemble,
+        scenario_id=req.scenario_id, scenario=req.scenario, use_town=req.use_town, town_scale=req.town_scale,
+        plan_policy=req.plan_policy,
+    )
+    config = get_config()
+    try:
+        ensure_resolvable(sim_service.apply_options(config, options))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     try:
         run_id, store, personas, address, customer_profile = sim_service.prepare_simulation(
-            pid, req.setup_id, req.run_id, preview=req.preview,
+            pid, req.setup_id, req.run_id, preview=req.preview, default_currency=config.currency,
         )
     except AppError as e:
         raise HTTPException(e.status_code, str(e))
 
-    options = RunOptions(
-        engine_type=req.engine_type, seed=req.seed, replicate=req.replicate,
-        exposure_model=req.exposure_model, route_ordering=req.route_ordering,
-        max_customers=req.max_customers, preview=req.preview,
-    )
-    config = get_config()
     executor.submit(
         sim_service.run_simulation_background,
         pid, run_id, req.setup_id, store, personas,
@@ -190,8 +215,8 @@ async def get_diagnostics(pid: str, run_id: str) -> dict[str, Any]:
 @router.get("/{pid}/compare", summary="Paired A/B comparison of two runs", response_model=ComparisonReport)
 async def compare(
     pid: str,
-    a: str = Query(description="baseline run id"),
-    b: str = Query(description="variant run id"),
+    a: str = Query(pattern=RESOURCE_ID_PATTERN, description="baseline run id"),
+    b: str = Query(pattern=RESOURCE_ID_PATTERN, description="variant run id"),
     n_bootstrap: int = Query(default=2000, ge=200, le=20000),
 ) -> ComparisonReport:
     """Per-customer paired comparison (B − A) with bootstrap confidence intervals.
@@ -202,6 +227,8 @@ async def compare(
     seed so customers share random draws — that is what makes the paired test sharp."""
     try:
         return sim_service.compare_project_runs(pid, a, b, n_bootstrap=n_bootstrap)
+    except AppError as e:
+        raise HTTPException(e.status_code, e.message)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
 
@@ -225,6 +252,31 @@ async def fidelity(
         raise HTTPException(e.status_code, str(e))
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
+
+
+@router.post("/{pid}/runs/{run_id}/movement", summary="Compare anonymous tracks with simulated movement", response_model=MovementReport)
+async def movement_fidelity(
+    pid: str, run_id: str,
+    file: Annotated[UploadFile, File(description="UTF-8 CSV: track_id,x,y,timestamp_sec; zero-based grid cells")],
+    max_gap_seconds: Annotated[float, Form(gt=0, le=300, allow_inf_nan=False)] = 30,
+) -> MovementReport:
+    data = await file.read(MAX_TRACK_BYTES + 1)
+    if len(data) > MAX_TRACK_BYTES:
+        raise HTTPException(413, "Track CSV is too large (maximum 10 MB).")
+    try:
+        return await run_in_threadpool(sim_service.run_movement_fidelity, pid, run_id, data, max_gap_seconds=max_gap_seconds)
+    except AppError as e:
+        raise HTTPException(e.status_code, e.message) from e
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
+
+
+@router.get("/{pid}/runs/{run_id}/movement", summary="Read the aggregate movement comparison", response_model=MovementReport | None)
+def get_movement_fidelity(pid: str, run_id: str) -> MovementReport | None:
+    try:
+        return sim_service.get_movement_fidelity(pid, run_id)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from e
 
 
 @router.get("/{pid}/runs/{run_id}/export.csv", summary="Per-customer results as CSV")
@@ -255,11 +307,11 @@ async def get_timeline(pid: str, run_id: str) -> Any:
         return []
 
 
-@router.get("/{pid}/runs/{run_id}/store", summary="Store at simulation time")
-async def get_run_store(pid: str, run_id: str) -> dict[str, Any]:
-    """Store layout (Store object) at the time of the simulation run."""
+@router.get("/{pid}/runs/{run_id}/store", summary="Store at simulation time", response_model=Store)
+async def get_run_store(pid: str, run_id: str) -> Store:
+    """Recorded layout, enriched with current SKU photos where the snapshot has none."""
     try:
-        return sim_service.get_run_input(pid, run_id, "store.json")
+        return sim_service.get_run_store_view(pid, run_id)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
 

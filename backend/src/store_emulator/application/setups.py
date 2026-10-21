@@ -7,11 +7,13 @@ from pathlib import Path
 from typing import Any, cast
 
 from filelock import FileLock, Timeout
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
 from store_emulator.domain.rack import RACK_LEVELS, Face, Slot, SlotItem
 from store_emulator.domain.store import Store
+from store_emulator.domain.types import RESOURCE_ID_PATTERN
 from store_emulator.engine.validation import (
     BlockedFaceDetail, ClearedSlot, Issue, clear_blocked_slots,
     list_blocked_faces, validate,
@@ -22,12 +24,12 @@ from store_emulator.application.storage.io import DATA_DIR, write_json, read_jso
 from store_emulator.application.storage.generations import find_active_generation, list_generations
 from store_emulator.application.storage.setups import (
     read_setup, write_setup, list_setups, new_setup_data,
-    delete_setup, find_descendants, personas_path, setup_path,
+    delete_setup, find_descendants, metadata_path, personas_path, setup_path,
     read_state, write_state,
 )
 
 
-_SAFE_ID = re.compile(r"[a-z0-9_]+")
+_SAFE_ID = re.compile(RESOURCE_ID_PATTERN)
 
 
 def _lock_path(project_id: str, setup_id: str) -> Path:
@@ -38,18 +40,19 @@ def _lock_path(project_id: str, setup_id: str) -> Path:
     """
     if not _SAFE_ID.fullmatch(project_id) or not _SAFE_ID.fullmatch(setup_id):
         raise ValueError(f"unsafe pid/sid: {project_id}/{setup_id}")
-    lock_dir = Path(DATA_DIR) / "locks"
+    lock_dir = Path(DATA_DIR) / "locks" / project_id
     lock_dir.mkdir(parents=True, exist_ok=True)
-    return lock_dir / f"setup_{project_id}_{setup_id}.lock"
+    return lock_dir / f"setup_{setup_id}.lock"
 
 
 def get_setups(project_id: str) -> list[dict[str, Any]]:
     """Setup summaries (store excluded) with readiness attached."""
-    setups = list_setups(project_id)
+    setups = list_setups(project_id, include_store=True)
     persona_count = _count_personas(project_id)
-    gens_by_setup = _running_gens_by_setup(project_id)
+    gens = _running_generations(project_id)
     for s in setups:
-        s["readiness"] = _compute_readiness(s, persona_count, gens_by_setup.get(s["id"], []))
+        s["readiness"] = _compute_readiness(s, persona_count, gens)
+        s.pop("store", None)
     return setups
 
 
@@ -60,8 +63,8 @@ def get_setup(project_id: str, setup_id: str) -> dict[str, Any]:
     except FileNotFoundError:
         raise AppError(f"setup not found: {setup_id}", 404)
     persona_count = _count_personas(project_id)
-    gens_by_setup = _running_gens_by_setup(project_id)
-    setup["readiness"] = _compute_readiness(setup, persona_count, gens_by_setup.get(setup_id, []))
+    gens = _running_generations(project_id)
+    setup["readiness"] = _compute_readiness(setup, persona_count, gens)
     _resolve_slot_images(project_id, setup)
     return setup
 
@@ -94,11 +97,11 @@ def load_setup_with_validation(project_id: str, setup_id: str) -> dict[str, obje
         if store_obj is not None:
             blocked = list_blocked_faces(store_obj)
     persona_count = _count_personas(project_id)
-    gens_by_setup = _running_gens_by_setup(project_id)
+    gens = _running_generations(project_id)
     result: dict[str, object] = dict(setup)
     result["blocked_faces"] = [bf.model_dump(mode="json") for bf in blocked]
     result["readiness"] = _compute_readiness(
-        setup, persona_count, gens_by_setup.get(setup_id, [])
+        setup, persona_count, gens
     )
     _resolve_slot_images(project_id, result)
     return result
@@ -260,20 +263,19 @@ def save_setup_with_lock(
                     404, "setup_not_found", "not_found",
                     f"Setup not found: {setup_id}", {},
                 )
-            assert_setup_mutation_allowed(disk_setup, payload)
             store_data = payload.get("store")
+            try:
+                assert_setup_mutation_allowed(disk_setup, payload)
+                store_obj = Store.model_validate(store_data) if store_data is not None else None
+            except ValidationError as e:
+                msg = str(e).split("\n")[0][:200]
+                raise AppError(
+                    422, "invalid_store", "validation_error",
+                    f"invalid store data: {msg}", {},
+                ) from e
             cleared: list[ClearedSlot] = []
             issues: list[Issue] = []
-            store_obj: Store | None = None
-            if store_data is not None:
-                try:
-                    store_obj = Store.model_validate(store_data)
-                except Exception as e:
-                    msg = str(e).split("\n")[0][:200]
-                    raise AppError(
-                        422, "invalid_store", "validation_error",
-                        f"invalid store data: {msg}", {},
-                    )
+            if store_obj is not None:
                 issues = validate(store_obj)
                 errors = [i for i in issues if i.severity == "error"]
                 if errors:
@@ -315,23 +317,15 @@ def _count_personas(project_id: str) -> int:
     return len(data)
 
 
-def _running_gens_by_setup(project_id: str) -> dict[str, list[dict[str, Any]]]:
-    result: dict[str, list[dict[str, Any]]] = {}
-    for g in list_generations(project_id):
-        if g.get("status") not in ("pending", "running"):
-            continue
-        sid = str(g.get("setup_id", ""))
-        if not sid:
-            continue
-        result.setdefault(sid, []).append(g)
-    return result
+def _running_generations(project_id: str) -> list[dict[str, Any]]:
+    return [g for g in list_generations(project_id) if g.get("status") in ("pending", "running")]
 
 
 def setup_summary(project_id: str, setup: dict[str, Any]) -> dict[str, Any]:
     """Summary with store excluded and readiness attached. Shared by new-setup responses."""
     summary = {k: v for k, v in setup.items() if k != "store"}
     persona_count = _count_personas(project_id)
-    gens = _running_gens_by_setup(project_id).get(setup["id"], [])
+    gens = _running_generations(project_id)
     summary["readiness"] = _compute_readiness(setup, persona_count, gens)
     return summary
 
@@ -355,7 +349,7 @@ def _compute_readiness(
     """
     reasons: list[str] = []
     for g in gens:
-        if g.get("kind") == "layout":
+        if g.get("kind") == "layout" and g.get("setup_id") == setup.get("id"):
             reasons.append("layout_pending")
         elif g.get("kind") == "persona":
             reasons.append("personas_pending")
@@ -572,6 +566,8 @@ def replace_slots(
         # Empty sku ("") creates no SlotItem; coords with zero non-empty
         # items skip Slot creation entirely (sparse representation).
         if sku:
+            if len(existing.items) >= 4:
+                raise AppError(f"row {row_idx}: rack '{rack_id}' block {block} face {face_str} level {level} holds at most 4 products", 400)
             existing.items.append(SlotItem(
                 sku=sku, name=name, price=price, promo=promo,
             ))
@@ -609,6 +605,8 @@ def create_setup_from_source(
     - "empty": create setup with store=None. source_setup_id optional —
       when provided, used as parentId (inherits block meta); otherwise parentId=None.
     """
+    if not metadata_path(project_id).is_file():
+        raise AppError(f"project not found: {project_id}", 404)
     if mode not in ("racks_and_items", "racks", "empty"):
         raise AppError(f"unknown mode: {mode}", 400)
 
@@ -653,6 +651,9 @@ def create_setup_from_source(
                 cast(dict[str, Any], rack_any)["slots"] = []
 
     new_setup = new_setup_data(final_name, source_setup_id, store_copy, memo)
+    for key in ("building", "generation"):
+        if source.get(key) is not None:
+            new_setup[key] = copy.deepcopy(source[key])
     write_json(setup_path(project_id, new_setup["id"]), new_setup)
     set_active_setup(project_id, new_setup["id"])
     return setup_summary(project_id, new_setup)

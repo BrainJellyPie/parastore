@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import random
 from collections import Counter
 from collections.abc import Callable
@@ -13,6 +14,7 @@ from store_emulator.domain.result import AggregatedResult, FailedCustomer
 from store_emulator.domain.runner import ProgressCallback
 from store_emulator.domain.store import Store
 from store_emulator.domain.types import PathFinder, stable_seed
+from store_emulator.engine.scenario import compile_scenario, hour_effects, priors_for, scale_trip
 from store_emulator.engine.validation import validate, clear_blocked_slots, log_cleared
 from .aggregator import aggregate
 from .customer_executor import execute_decision
@@ -67,7 +69,22 @@ class PerCustomerSimulationRunner:
         self.engine = engine
         self.pathfinder = pathfinder
         self.cue_sampler = cue_sampler
-        self.behavior_patterns = behavior_patterns
+        # The pattern presets are sized for convenience stores; basket_scale stretches every
+        # pattern's product cap for larger formats (0 stays 0: browse-only patterns).
+        scale = config.basket_scale
+        self.behavior_patterns = behavior_patterns if scale == 1.0 else [
+            p.model_copy(update={"max_products": max(1, math.ceil(p.max_products * scale)) if p.max_products > 0 else 0})
+            for p in behavior_patterns
+        ]
+        self._scenario = compile_scenario(config.scenario) if config.scenario is not None else None
+
+    def _seconds_per_tile(self, customer_seed: int) -> float:
+        """This shopper's walking time per tile: the configured pace times a seeded lognormal factor."""
+        sd = self.config.walk_pace_sd
+        if sd <= 0:
+            return self.config.block_move_sec
+        z = random.Random(stable_seed(customer_seed, "pace")).gauss(0.0, 1.0)
+        return self.config.block_move_sec * math.exp(sd * z)
 
     def get_engine_metadata(self) -> dict[str, object]:
         if isinstance(self.engine, EngineMetadataSource):
@@ -110,6 +127,14 @@ class PerCustomerSimulationRunner:
         on_progress: ProgressCallback | None = None,
     ) -> tuple[AggregatedResult, list[CustomerResult]]:
         pathcalc_heatmap, entries, hourly_counts = self._validate_and_prepare(store, personas)
+        priors = priors_for(store.type, self.config.scenario_priors)
+        if self.config.scenario is not None:   # situation effects follow the store's format
+            self._scenario = compile_scenario(self.config.scenario, priors)
+        # Trip size by situation and part of the day (receipt-sized trips only).
+        size_fx = self._scenario if self._scenario is not None else hour_effects(priors)
+        prepare = getattr(self.engine, "prepare", None)
+        if callable(prepare):
+            prepare(store)
 
         self.engine.reset_usage()
 
@@ -130,6 +155,7 @@ class PerCustomerSimulationRunner:
         async def simulate_one(entry: CustomerEntry, persona: Persona) -> CustomerResult | None:
             nonlocal completed
             customer_seed = stable_seed(run_seed, persona.id)
+            persona = scale_trip(persona, size_fx, entry.hour, customer_seed)
             cue = self.cue_sampler(random.Random(stable_seed(customer_seed, "cue")))
             async with semaphore:
                 reason = ""
@@ -147,11 +173,19 @@ class PerCustomerSimulationRunner:
                             customer_profile=customer_profile,
                             # A retry must not replay the exact sampling that just failed.
                             seed=customer_seed if attempt == 0 else stable_seed(customer_seed, "retry", attempt),
+                            situation=self._scenario.situation if self._scenario else "",
                         )
                         decision = await self.engine.decide_actions(context)
+                        if self._scenario is not None and self._scenario.dwell != 1.0:
+                            # Crowding, weather, music: people linger or hurry everywhere in the store.
+                            factor = self._scenario.dwell
+                            decision.actions = [
+                                a.model_copy(update={"dwell": max(1, round(a.dwell * factor))}) if a.dwell else a
+                                for a in decision.actions
+                            ]
                         result = execute_decision(
                             store, entry.persona_id, entry.day, entry.arrival_time,
-                            decision, self.pathfinder, self.config.block_move_sec,
+                            decision, self.pathfinder, self._seconds_per_tile(customer_seed),
                             rng=random.Random(stable_seed(customer_seed, "timeline")),
                             max_quantity=self.config.max_quantity_per_line,
                         )

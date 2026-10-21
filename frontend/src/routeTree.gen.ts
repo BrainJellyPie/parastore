@@ -9,13 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TownPidRouteImport } from './routes/town.$pid'
 import { Route as ProjectsNewRouteImport } from './routes/projects/new'
 import { Route as ProjectsPidRouteImport } from './routes/projects/$pid'
+import { Route as MarketingPidRouteImport } from './routes/marketing.$pid'
+import { Route as CapturePidRouteImport } from './routes/capture.$pid'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TownPidRoute = TownPidRouteImport.update({
+  id: '/town/$pid',
+  path: '/town/$pid',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsNewRoute = ProjectsNewRouteImport.update({
@@ -28,44 +42,106 @@ const ProjectsPidRoute = ProjectsPidRouteImport.update({
   path: '/projects/$pid',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketingPidRoute = MarketingPidRouteImport.update({
+  id: '/marketing/$pid',
+  path: '/marketing/$pid',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CapturePidRoute = CapturePidRouteImport.update({
+  id: '/capture/$pid',
+  path: '/capture/$pid',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/capture/$pid': typeof CapturePidRoute
+  '/marketing/$pid': typeof MarketingPidRoute
   '/projects/$pid': typeof ProjectsPidRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/town/$pid': typeof TownPidRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/capture/$pid': typeof CapturePidRoute
+  '/marketing/$pid': typeof MarketingPidRoute
   '/projects/$pid': typeof ProjectsPidRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/town/$pid': typeof TownPidRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/capture/$pid': typeof CapturePidRoute
+  '/marketing/$pid': typeof MarketingPidRoute
   '/projects/$pid': typeof ProjectsPidRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/town/$pid': typeof TownPidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/projects/$pid' | '/projects/new'
+  fullPaths:
+    | '/'
+    | '/settings'
+    | '/capture/$pid'
+    | '/marketing/$pid'
+    | '/projects/$pid'
+    | '/projects/new'
+    | '/town/$pid'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/projects/$pid' | '/projects/new'
-  id: '__root__' | '/' | '/projects/$pid' | '/projects/new'
+  to:
+    | '/'
+    | '/settings'
+    | '/capture/$pid'
+    | '/marketing/$pid'
+    | '/projects/$pid'
+    | '/projects/new'
+    | '/town/$pid'
+  id:
+    | '__root__'
+    | '/'
+    | '/settings'
+    | '/capture/$pid'
+    | '/marketing/$pid'
+    | '/projects/$pid'
+    | '/projects/new'
+    | '/town/$pid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SettingsRoute: typeof SettingsRoute
+  CapturePidRoute: typeof CapturePidRoute
+  MarketingPidRoute: typeof MarketingPidRoute
   ProjectsPidRoute: typeof ProjectsPidRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
+  TownPidRoute: typeof TownPidRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/town/$pid': {
+      id: '/town/$pid'
+      path: '/town/$pid'
+      fullPath: '/town/$pid'
+      preLoaderRoute: typeof TownPidRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/new': {
@@ -82,13 +158,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsPidRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketing/$pid': {
+      id: '/marketing/$pid'
+      path: '/marketing/$pid'
+      fullPath: '/marketing/$pid'
+      preLoaderRoute: typeof MarketingPidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/capture/$pid': {
+      id: '/capture/$pid'
+      path: '/capture/$pid'
+      fullPath: '/capture/$pid'
+      preLoaderRoute: typeof CapturePidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SettingsRoute: SettingsRoute,
+  CapturePidRoute: CapturePidRoute,
+  MarketingPidRoute: MarketingPidRoute,
   ProjectsPidRoute: ProjectsPidRoute,
   ProjectsNewRoute: ProjectsNewRoute,
+  TownPidRoute: TownPidRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

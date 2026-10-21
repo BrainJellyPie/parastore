@@ -2,7 +2,7 @@
 // start another run, compare runs, export results, return to editing.
 
 import { useState } from "react";
-import { Download, GitCompareArrows, Pencil, Play } from "lucide-react";
+import { Download, GitCompareArrows, Pencil, Play, Wand2 } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import { useSimulationStore } from "@/stores/simulationStore";
 
 import { runLabel } from "../labels";
 import { CompareDialog } from "./CompareDialog";
+import { OptimizeDialog } from "./OptimizeDialog";
 import { RunLauncherDialog } from "./RunLauncherDialog";
 
 export interface RunToolbarProps {
@@ -38,42 +39,46 @@ export function RunToolbar({ projectId, setupId, runId, setupStatus, personaCoun
   const lastRunError = useSimulationStore((s) => s.lastRunError);
   const [launchOpen, setLaunchOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [optimizeOpen, setOptimizeOpen] = useState(false);
   const editable = setupStatus === "draft";
 
   return (
-    <div className="pointer-events-auto absolute bottom-4 left-3 z-10 flex max-w-[calc(100%-420px)] flex-col gap-2">
+    <div className="pointer-events-auto absolute bottom-4 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col gap-2">
       {lastRunError && (
-        <p className="rounded-md border border-destructive/40 bg-background/95 px-2 py-1 text-xs text-destructive shadow-sm">
+        <p className="glass rounded-xl border border-destructive/40 px-3 py-1.5 text-sm text-destructive shadow-float">
           Last run failed: {lastRunError.split("\n")[0]}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border bg-background/95 p-1.5 shadow-md">
+      <div className="glass flex flex-wrap items-center gap-1 rounded-2xl border p-1.5 shadow-float">
         <Select value={runId} onValueChange={setViewRunId}>
-          <SelectTrigger className="h-8 w-[260px] text-xs" aria-label="Run shown">
+          <SelectTrigger className="h-9 w-[270px] rounded-xl text-sm" aria-label="Run shown">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {runs.map((r) => (
-              <SelectItem key={r.run_id} value={r.run_id} className="text-xs">
+              <SelectItem key={r.run_id} value={r.run_id} className="text-sm">
                 {runLabel(r)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={() => setLaunchOpen(true)}>
-          <Play className="size-3" /> Run again
+        <Button size="sm" variant="ghost" className="h-9 gap-1.5 rounded-xl px-3 text-sm" onClick={() => setLaunchOpen(true)}>
+          <Play className="size-4" /> Run again
         </Button>
-        <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={() => setCompareOpen(true)}>
-          <GitCompareArrows className="size-3" /> Compare
+        <Button size="sm" variant="ghost" className="h-9 gap-1.5 rounded-xl px-3 text-sm" onClick={() => setCompareOpen(true)}>
+          <GitCompareArrows className="size-4" /> Compare
         </Button>
-        <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild>
+        <Button size="sm" variant="ghost" className="h-9 gap-1.5 rounded-xl px-3 text-sm" onClick={() => setOptimizeOpen(true)}>
+          <Wand2 className="size-4" /> Optimize
+        </Button>
+        <Button size="sm" variant="ghost" className="h-9 gap-1.5 rounded-xl px-3 text-sm" asChild>
           <a href={runExportUrl(projectId, runId)} download>
-            <Download className="size-3" /> CSV
+            <Download className="size-4" /> CSV
           </a>
         </Button>
         {editable && (
-          <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={() => setViewRunId(null)}>
-            <Pencil className="size-3" /> Edit layout
+          <Button size="sm" variant="ghost" className="h-9 gap-1.5 rounded-xl px-3 text-sm" onClick={() => setViewRunId(null)}>
+            <Pencil className="size-4" /> Edit layout
           </Button>
         )}
       </div>
@@ -85,6 +90,7 @@ export function RunToolbar({ projectId, setupId, runId, setupStatus, personaCoun
         personaCount={personaCount}
         locked={!editable}
       />
+      <OptimizeDialog open={optimizeOpen} onOpenChange={setOptimizeOpen} projectId={projectId} setupId={setupId} />
       <CompareDialog
         open={compareOpen}
         onOpenChange={setCompareOpen}

@@ -199,7 +199,7 @@ export function RackDetailView({ store }: Props) {
                   if (faceFirstRow) faceFirstRow = false;
 
                   rows.push(
-                    <tr key={`${rack.id}-${fg.face}-${lg.level}-${item.sku}`} className="border-b">
+                    <tr key={`${rack.id}-${fg.face}-${lg.level}-${si}-${item.sku}`} className="border-b">
                       <td className="pl-6 pr-2 py-1">{showRack ? rack.rack_name : ""}</td>
                       <td className="px-2 py-1">{showFace ? FACE_LABELS[fg.face] : ""}</td>
                       <td className="px-2 py-1 tabular-nums">{showFace ? fg.totalSlots : ""}</td>
@@ -213,7 +213,7 @@ export function RackDetailView({ store }: Props) {
                               className="size-8 shrink-0 rounded border bg-muted object-contain"
                             />
                           ) : (
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded border bg-muted text-[9px] text-muted-foreground">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded border bg-muted text-[0.68rem] text-muted-foreground">
                               no img
                             </div>
                           )}

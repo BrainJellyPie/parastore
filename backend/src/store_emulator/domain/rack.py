@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .types import FACE_OFFSETS as _FACE_OFFSETS
 from .types import Face, Position, Shape
@@ -18,6 +18,7 @@ class RackType(StrEnum):
     SHELF = "shelf"
     FRIDGE = "fridge"
     COUNTER = "counter"   # checkout face = unlocked exposed side face (see service_access_tiles)
+    TABLE = "table"       # furniture only; no product slots or table-service simulation
     ENTRANCE = "entrance"
     EXIT = "exit"
 
@@ -28,7 +29,7 @@ SLOT_CAPABLE_TYPES: frozenset[RackType] = frozenset({RackType.SHELF, RackType.FR
 
 
 class BlockFace(BaseModel):
-    block: int
+    block: int = Field(ge=0)
     face: Face
 
 
@@ -37,7 +38,9 @@ class SlotItem(BaseModel):
 
     sku: str
     name: str
-    price: int = 0  # unit: US cents (e.g. 549 = $5.49)
+    price: int = Field(default=0, ge=0)  # unit: US cents (e.g. 549 = $5.49)
+    # The usual shelf price when `price` is a temporary one (a discount or a raise); 0 = `price` is usual.
+    regular_price: int = Field(default=0, ge=0)
     promo: str = ""
     image_url: str | None = None  # backend fills this from manifest; falls back to placeholder when absent
 
@@ -45,7 +48,7 @@ class SlotItem(BaseModel):
 class Slot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    block: int
+    block: int = Field(ge=0)
     face: Face
     level: int = Field(default=1, ge=1, le=RACK_LEVELS)
     # Max 4 SKUs per face (spec rev 5 decision 10); 5+ raises ValidationError at the domain layer.
@@ -59,8 +62,10 @@ class Rack(BaseModel):
     position: Position
     rotation: Literal[0, 90, 180, 270] = 0
     levels: int = RACK_LEVELS  # domain only uses RACK_LEVELS, but kept for frontend round-trip fidelity
-    dwell_min: int = 5   # seconds
-    dwell_max: int = 30  # seconds
+    # Bounds on one stop at the rack (seconds). Shoppers filmed with eye trackers in a supermarket spent
+    # 2–29 s at the shelf per purchase, a quarter of them under 4.5 s.
+    dwell_min: int = 2
+    dwell_max: int = 30
     rack_name: str = ""
     rack_desc: str = ""
     rack_decoration_desc: str = ""
@@ -68,6 +73,25 @@ class Rack(BaseModel):
     design_variant: Literal["a", "b", "c"] = "a"
     locked_faces: list[BlockFace] = []
     slots: list[Slot] = []
+
+    @field_validator("shape")
+    @classmethod
+    def _rectangular_shape(cls, shape: Shape) -> Shape:
+        if not shape or not shape[0] or any(len(row) != len(shape[0]) for row in shape):
+            raise ValueError("rack shape must be a nonempty rectangular grid")
+        return shape
+
+    @model_validator(mode="after")
+    def _block_references(self) -> "Rack":
+        count = len(self.block_cells)
+        if any(slot.block >= count for slot in self.slots):
+            raise ValueError("slot block must refer to an occupied rack cell")
+        if any(face.block >= count for face in self.locked_faces):
+            raise ValueError("locked face block must refer to an occupied rack cell")
+        locations = {(slot.block, slot.face, slot.level) for slot in self.slots}
+        if len(locations) != len(self.slots):
+            raise ValueError("rack slots must have unique block, face and level combinations")
+        return self
 
     @property
     def rotated_shape(self) -> Shape:
@@ -154,7 +178,7 @@ class Rack(BaseModel):
         occupied = set(self.occupied_positions)
         tiles: set[Position] = set()
         for idx, (r, c) in enumerate(self.block_cells):
-            for face in self.valid_faces(idx):
+            for face in (list(Face) if self.type == RackType.TABLE else self.valid_faces(idx)):
                 if (idx, face) in locked:
                     continue
                 dx, dy = _FACE_OFFSETS[face]

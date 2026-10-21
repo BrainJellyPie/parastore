@@ -38,8 +38,6 @@ export function marketAssetFor(rack: Rack): string | null {
     }
     case "display":
       return `${MARKET}/freezer.glb`;
-    case "table":
-      return `${MARKET}/display-bread.glb`;
     default:
       return null;
   }
@@ -71,6 +69,21 @@ export function characterAssetFor(personaId: string, gender?: string): string {
   return `${CHARACTERS}/${pool[idx]}`;
 }
 
+// MIT-licensed Microsoft Rocketbox avatars, converted and bundled locally.
+const REALISTIC_FEMALE_FILES = ["female-01.glb", "female-14.glb", "female-11.glb", "female-09.glb"];
+const REALISTIC_MALE_FILES = ["male-01.glb", "male-14.glb", "male-12.glb", "male-07.glb"];
+export const ALL_REALISTIC_CHARACTER_ASSETS = [...REALISTIC_FEMALE_FILES, ...REALISTIC_MALE_FILES].map((file) => `/assets/people/${file}`);
+
+export function realisticCharacterAssetFor(personaId: string, gender?: string): string {
+  const pool = gender === "Female" ? REALISTIC_FEMALE_FILES : gender === "Male" ? REALISTIC_MALE_FILES : [...REALISTIC_FEMALE_FILES, ...REALISTIC_MALE_FILES];
+  return `/assets/people/${pool[hashString(personaId) % pool.length]}`;
+}
+
+export function characterAnimationPhase(personaId: string): number {
+  // Mix the ID hash so sequential shopper IDs don't breathe in near-unison.
+  return (Math.imul(hashString(personaId), 0x9e3779b1) >>> 0) / 0x100000000;
+}
+
 export const ALL_MARKET_ASSETS = [
   `${MARKET}/freezer.glb`,
   `${MARKET}/freezers-standing.glb`,
@@ -83,3 +96,13 @@ export const ALL_MARKET_ASSETS = [
 ];
 
 export const ALL_CHARACTER_ASSETS = CHARACTER_FILES.map((f) => `${CHARACTERS}/${f}`);
+
+export const ALL_CLASSIC_ASSETS = [
+  ...ALL_MARKET_ASSETS,
+  ...ALL_CHARACTER_ASSETS,
+  `${MARKET}/wall.glb`,
+  `${MARKET}/wall-corner.glb`,
+  `${MARKET}/wall-door-rotate.glb`,
+  `${MARKET}/rugRectangle.glb`,
+  "/assets/ghost/character-ghost.glb",
+];
